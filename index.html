@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>額店 利用者住所検索</title>
+<title>利用者住所検索|寿リハ 送迎サポート</title>
 
 <!-- ===== PWA設定 ===== -->
 <link rel="manifest" href="./manifest.json">
@@ -1371,7 +1371,7 @@
   <div class="hd">
     <div>
       <p class="hd-eyebrow">寿リハ ・ 送迎サポート</p>
-      <h1>額店 利用者住所検索</h1>
+      <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-count">
       登録利用者
@@ -1630,9 +1630,13 @@ document.getElementById('shopSelect').addEventListener('change', function(){
   CURRENT_SHOP_NAME = shopName;
   GAKU_ORIGIN = addr;
   els.originFixed.textContent = addr;
-  // ページタイトル・印刷ヘッダーを更新
+  // ページタイトル・見出し・印刷ヘッダーを更新
   document.title = `${shopName} 利用者住所検索`;
+  document.getElementById('pageTitle').textContent = `${shopName} 利用者住所検索`;
 });
+
+// 表示用の店舗名(未選択時は「店舗」)
+const shopLabel = () => CURRENT_SHOP_NAME || '店舗';
 
 const originValue = () => GAKU_ORIGIN;
 const AM_ARRIVAL_DEADLINE = '9:00'; // ①お迎えの遅着上限（これを超えると遅すぎ）
@@ -1935,7 +1939,7 @@ function cardHtml(c, idx){
 
   const dirHref = hasAddr ? mapsDirUrl(originValue(), c.addr) : '#';
   const dirDisabled = !hasAddr;
-  const dirBtn = `<a class="btn primary ${dirDisabled ? 'disabled' : ''}" href="${dirHref}" target="_blank" rel="noopener" title="${dirDisabled ? '住所が未登録のためルートを表示できません' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3 3 10.5l7 2.5 2.5 7L21 3Z"/></svg>額店からのルート</a>`;
+  const dirBtn = `<a class="btn primary ${dirDisabled ? 'disabled' : ''}" href="${dirHref}" target="_blank" rel="noopener" title="${dirDisabled ? '住所が未登録のためルートを表示できません' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3 3 10.5l7 2.5 2.5 7L21 3Z"/></svg>${escapeHtml(shopLabel())}からのルート</a>`;
 
   return `
   <div class="card ${isInactive ? 'inactive' : ''}">
@@ -2720,11 +2724,11 @@ function renderLegHtmlFor(legId){
   let timeLabel;
   let lateAlert = '';
   if(entry.targetTime){
-    timeLabel = `${minToTime(timing.departMin)} 額店出発(目安) → ${entry.targetTime} 額店到着${longTrip ? ' ⚠通常より早めの出発が必要です' : ''}`;
+    timeLabel = `${minToTime(timing.departMin)} ${shopLabel()}出発(目安) → ${entry.targetTime} ${shopLabel()}到着${longTrip ? ' ⚠通常より早めの出発が必要です' : ''}`;
   } else {
     // 完了目安は実際の最終停車到着時刻をそのまま使う(丸めによる見かけ上の遅延超過を避ける)
     const completeMin = withEta.length ? Math.round(withEta[withEta.length - 1].etaMin) : timing.departMin;
-    timeLabel = `${entry.fixedTime} 額店出発 → 完了目安 ${minToTime(completeMin)}`;
+    timeLabel = `${entry.fixedTime} ${shopLabel()}出発 → 完了目安 ${minToTime(completeMin)}`;
     // ①お迎え区間でスタッフ出勤時刻を固定した場合、目標ゾーン(8:55〜9:00)に収まるかチェックする
     if(entry.phaseKey === 'amPickup'){
       const deadlineMin = timeToMin(AM_ARRIVAL_DEADLINE);
@@ -2858,7 +2862,7 @@ async function buildRoutes(){
 
   const origin = geoMap[GAKU_ORIGIN];
   if(!origin){
-    routeSummary.textContent = '額店の位置情報を取得できませんでした。通信環境をご確認のうえ、もう一度お試しください。';
+    routeSummary.textContent = `${shopLabel()}の位置情報を取得できませんでした。通信環境をご確認のうえ、もう一度お試しください。`;
     routeProgress.classList.remove('show');
     buildBtn.disabled = false;
     buildBtn.textContent = originalLabel;
