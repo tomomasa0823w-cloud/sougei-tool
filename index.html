@@ -2853,7 +2853,11 @@ function legHtml(legId, title, time, stops, routeUrl){
           const parts = legId.split('-'); // ['leg','amPickup','0']
           const phaseKey = parts[1];
           const myVehicle = parseInt(parts[2], 10);
-          let maxV = myVehicle;
+          // その区間の総台数(選択された台数)から移動先リストを作る
+          let maxV = (typeof selectedVehicleCounts !== 'undefined' && selectedVehicleCounts[phaseKey])
+            ? selectedVehicleCounts[phaseKey] - 1
+            : myVehicle;
+          // フォールバック:登録済みの号車も確認
           while(legRegistry[`leg-${phaseKey}-${maxV+1}`]) maxV++;
           if(maxV === 0) return ''; // 1台しかない場合は非表示
           const opts = [];
