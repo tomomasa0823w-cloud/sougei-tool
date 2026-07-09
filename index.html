@@ -1096,6 +1096,21 @@
 
   /* ---- Print ---- */
   .print-header{ display:none; }
+  #vehiclePrintView{ display:none; } /* 号車ごと印刷ビュー(印刷時のみ表示) */
+  .print-style-select{
+    display:none;
+    padding: 7px 10px;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    background: var(--paper);
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  #printBtn.show + .print-style-select{ display:inline-block; }
   .print-btn{
     margin-top: 10px;
     width: 100%;
@@ -1155,56 +1170,128 @@
     /* サマリー・警告は最初のページにまとめる */
     .staff-suggestion-box, .ng-violation-box{ display:none !important; }
 
-    /* 区間グループごとに改ページ */
-    /* ① 朝迎え → 単独1ページ */
-    .phase-section[data-phase="amPickup"]{
-      page-break-before: auto;
-      page-break-after: always;
-    }
-    /* ② 昼送り＋昼迎え → 同じページ、その後改ページ */
-    .phase-section[data-phase="amDrop"]{
-      page-break-before: auto;
-      page-break-after: avoid;
-    }
-    .phase-section[data-phase="pmPickup"]{
-      page-break-before: avoid;
-      page-break-after: always;
-    }
-    /* ③ 夕方送り → 単独ページ */
-    .phase-section[data-phase="pmDrop"]{
-      page-break-before: auto;
-      page-break-after: auto;
-    }
+    /* ===== 印刷共通 =====
+       どちらの印刷スタイルも「号車ごと」にまとめた #vehiclePrintView を出力する。
+       画面上の区間ごと一覧(.phase-section)は印刷しない */
+    @page{ size: A4; margin: 5mm 6mm; }
+    .phase-section{ display:none !important; }
+    #vehiclePrintView{ display:block !important; }
 
-    /* 区間見出しをコンパクトに */
-    .phase-section{ margin-bottom: 6px; }
-    .phase-section-title{
-      font-size: 12px;
-      margin-bottom: 4px;
-      padding-bottom: 3px;
+    /* 集計・欠席・自家用車の3ボックスを横並びにして1枚目上部を圧縮 */
+    .kind-summary-box, .absent-result-box, .car-result-box{
+      display: inline-block !important;
+      vertical-align: top;
+      width: 32.8%;
+      box-sizing: border-box;
+      margin-right: 0.4%;
+      margin-bottom: 2px !important;
+    }
+    .kind-summary-table{ font-size: 8px !important; }
+    .kind-summary-table th, .kind-summary-table td{ padding: 0 3px !important; }
+    .kind-summary-box b, .absent-result-box b, .car-result-box b{ font-size: 8.5px !important; margin-bottom: 1px !important; }
+    .print-header h2{ font-size: 13px !important; margin: 0 0 1px !important; }
+    .print-header .meta{ font-size: 8px !important; margin-bottom: 2px !important; }
+
+    /* ===== 印刷スタイルB:号車ごと1枚(基準スタイル) ===== */
+    .vehicle-print-sheet{
+      page-break-before: always;
+      break-before: page;
+    }
+    .vps-head{
+      display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap;
+      border-bottom: 2px solid var(--moss);
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+    }
+    .vps-head h2{
+      margin:0;
+      font-family: "Zen Maru Gothic", sans-serif;
+      font-size: 17px;
+      color: var(--moss-deep);
+    }
+    .vps-driver{ font-size: 13px; }
+    .vps-meta{ width:100%; font-size: 9px; color: var(--ink-soft); margin-top: 2px; }
+    .vps-phase{
+      margin-bottom: 10px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .vps-phase-title{
+      display:flex; justify-content:space-between; align-items:baseline;
+      font-family: "Zen Maru Gothic", sans-serif;
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--moss-deep);
       border-bottom: 1.5px solid var(--moss);
+      padding-bottom: 2px;
+      margin-bottom: 5px;
     }
+    .vps-counts{ font-size: 10.5px; font-weight: 700; color: var(--ink-soft); }
+    /* 1台=1枚のときは文字を大きく読みやすく */
+    .vehicle-print-sheet .leg-time{ font-size: 11px; }
+    .vehicle-print-sheet .leg-stops li{ font-size: 11.5px; padding: 3px 8px; gap: 6px; }
+    .vehicle-print-sheet .stop-num{ width:16px; height:16px; font-size:10px; }
+    .vehicle-print-sheet .stop-eta{ font-size:11px; min-width:42px; }
+    .vehicle-print-sheet .stop-guide-time{ font-size:9px; }
+    .vehicle-print-sheet .stop-addr{ font-size:10.5px; }
+    .vehicle-print-sheet .stop-tag, .vehicle-print-sheet .stop-svc, .vehicle-print-sheet .stop-trial,
+    .vehicle-print-sheet .stop-extra, .vehicle-print-sheet .stop-pref, .vehicle-print-sheet .stop-alert,
+    .vehicle-print-sheet .stop-prevdiff{ font-size:9px; padding:0 5px; }
+    .vehicle-print-sheet .leg-late-alert, .vehicle-print-sheet .leg-early-alert{ font-size:10px; padding:4px 8px; margin-bottom:4px; }
+    .vehicle-print-sheet .alcohol-check-row{ margin-top: 12px; }
 
-    /* 号車カードを2列横並びレイアウト(余白削減・各区間を1枚に収める) */
-    .phase-section{
+    /* ===== 印刷スタイルA:全体まとめ(既定) =====
+       号車シートを改ページせず2列に流し込み、両面1枚(2ページ)以内を狙う */
+    body:not(.print-by-vehicle) #vehiclePrintView{
       display: grid !important;
       grid-template-columns: 1fr 1fr;
-      gap: 5px 6px;
+      gap: 3px 5px;
       align-items: start;
     }
-    .phase-section-title, .phase-section-meta{
-      grid-column: 1 / -1;
+    body:not(.print-by-vehicle) .vehicle-print-sheet{
+      page-break-before: auto;
+      break-before: auto;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      border: 1px solid #B9C4BD;
+      border-radius: 4px;
+      padding: 2px 6px;
+      box-sizing: border-box;
     }
+    body:not(.print-by-vehicle) .vps-head{ border-bottom-width: 1.5px; padding-bottom: 1px; margin-bottom: 2px; }
+    body:not(.print-by-vehicle) .vps-head h2{ font-size: 10px; }
+    body:not(.print-by-vehicle) .vps-driver{ font-size: 8.5px; }
+    body:not(.print-by-vehicle) .vps-meta{ display: none; }
+    body:not(.print-by-vehicle) .vps-phase{ margin-bottom: 3px; }
+    body:not(.print-by-vehicle) .vps-phase-title{ font-size: 8.5px; padding-bottom: 1px; margin-bottom: 1px; border-bottom-width: 1px; }
+    body:not(.print-by-vehicle) .vps-counts{ font-size: 7.5px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-time{ font-size: 7.5px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-stops li{ font-size: 8px; padding: 0 4px; gap: 3px; line-height: 1.15; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-num{ width: 10px; height: 10px; font-size: 7px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-eta{ font-size: 8px; min-width: 28px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-addr{ font-size: 7.5px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-guide-time{ font-size: 6.5px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-tag,
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-svc,
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-trial,
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-extra,
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-pref,
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-alert,
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-prevdiff{ font-size: 6.5px; padding: 0 2px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-late-alert,
+    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-early-alert{ font-size: 7px; padding: 0 4px; margin-bottom: 1px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .alcohol-check-row{ font-size: 7.5px; margin-top: 1px; padding-top: 1px; }
+
     .vehicle-card{
       display: block;
       width: 100%;
       box-shadow: none;
       border: 1px solid #B9C4BD;
-      border-radius: 5px;
+      border-radius: 4px;
       page-break-inside: avoid;
       break-inside: avoid;
       margin-bottom: 0;
-      padding: 5px 8px;
+      padding: 2px 6px;
       box-sizing: border-box;
     }
     .vehicle-head{ margin-bottom: 4px; padding-bottom: 3px; }
@@ -1329,6 +1416,12 @@
     padding: 14px 16px;
     margin-bottom: 14px;
     box-shadow: var(--shadow);
+    transition: background .15s, border-color .15s;
+  }
+  .upload-box.dragover{
+    background: var(--sand);
+    border: 2.5px dashed var(--moss-deep);
+    box-shadow: 0 0 0 4px rgba(63,110,94,.15);
   }
   .upload-label{
     display:flex;
@@ -1394,7 +1487,7 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
       利用者データの読み込み(個人情報・この端末内のみで処理)
     </div>
-    <p class="upload-note">CSVファイルはこのブラウザの中だけで処理され、どこにも送信・保存されません。ページを閉じる・再読み込みすると消去されるので、開くたびに読み込んでください。</p>
+    <p class="upload-note">CSVファイルはこの枠内のどこにでもドラッグ&ドロップできます。ファイルはこのブラウザの中だけで処理され、どこにも送信・保存されません。ページを閉じる・再読み込みすると消去されるので、開くたびに読み込んでください。</p>
     <div class="upload-row">
       <input type="file" id="csvFile" accept=".csv" />
     </div>
@@ -1490,8 +1583,9 @@
           <div class="phase-vehicle-label">①お迎え</div>
           <div class="vehicle-picker" id="vehiclePicker-amPickup" data-phase="amPickup">
             <button data-count="3">3台</button>
-            <button data-count="4" class="active">4台</button>
-            <button data-count="5">5台</button>
+            <button data-count="4">4台</button>
+            <button data-count="5" class="active">5台</button>
+            <button data-count="6">6台</button>
           </div>
           <div class="staff-start-row" id="staffStartRow-amPickup" style="margin-top:8px;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
@@ -1531,24 +1625,27 @@
           <div class="phase-vehicle-label">②昼送り</div>
           <div class="vehicle-picker" id="vehiclePicker-amDrop" data-phase="amDrop">
             <button data-count="3">3台</button>
-            <button data-count="4" class="active">4台</button>
-            <button data-count="5">5台</button>
+            <button data-count="4">4台</button>
+            <button data-count="5" class="active">5台</button>
+            <button data-count="6">6台</button>
           </div>
         </div>
         <div class="phase-vehicle-item">
           <div class="phase-vehicle-label">③昼迎え</div>
           <div class="vehicle-picker" id="vehiclePicker-pmPickup" data-phase="pmPickup">
             <button data-count="3">3台</button>
-            <button data-count="4" class="active">4台</button>
-            <button data-count="5">5台</button>
+            <button data-count="4">4台</button>
+            <button data-count="5" class="active">5台</button>
+            <button data-count="6">6台</button>
           </div>
         </div>
         <div class="phase-vehicle-item">
           <div class="phase-vehicle-label">④夕方送り</div>
           <div class="vehicle-picker" id="vehiclePicker-pmDrop" data-phase="pmDrop">
             <button data-count="3">3台</button>
-            <button data-count="4" class="active">4台</button>
-            <button data-count="5">5台</button>
+            <button data-count="4">4台</button>
+            <button data-count="5" class="active">5台</button>
+            <button data-count="6">6台</button>
           </div>
         </div>
       </div>
@@ -1584,6 +1681,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-2M6 14h12v8H6z"/></svg>
         この一覧をA4で印刷 / PDF保存
       </button>
+      <select id="printStyleSelect" class="print-style-select" title="印刷スタイルを選択">
+        <option value="compact">印刷:全体まとめ(両面1枚)</option>
+        <option value="vehicle">印刷:号車ごと1枚</option>
+      </select>
       <button class="save-route-btn" id="saveRouteBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
         今回のルートを保存(次回用)
@@ -1792,7 +1893,7 @@ function buildClientsFromRows(rows){
 
 
 // ルート生成に必要な変数を一括宣言
-const selectedVehicleCounts = { amPickup: 4, amDrop: 4, pmPickup: 4, pmDrop: 4 };
+const selectedVehicleCounts = { amPickup: 5, amDrop: 5, pmPickup: 5, pmDrop: 5 };
 const STAFF_START_OPTIONS = ['8:00', '8:15', '8:30'];
 let staffStartTimes = {};
 let amPickupLegMinutes = [];
@@ -1866,10 +1967,18 @@ function onDataLoaded(){
   if(_extraSelectedListEl) _extraSelectedListEl.innerHTML = '';
 }
 
-document.getElementById('csvFile').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
+document.getElementById('csvFile').addEventListener('change', (e) => {
+  loadCsvFile(e.target.files[0]);
+});
+
+async function loadCsvFile(file){
   const statusEl = document.getElementById('uploadStatus');
   if(!file) return;
+  if(!/\.csv$/i.test(file.name)){
+    statusEl.className = 'upload-status err';
+    statusEl.textContent = `⚠ CSVファイルを選択してください（${file.name}）`;
+    return;
+  }
   statusEl.className = 'upload-status';
   statusEl.textContent = '読み込み中…';
   try{
@@ -1904,7 +2013,39 @@ document.getElementById('csvFile').addEventListener('change', async (e) => {
     statusEl.textContent = `⚠ 読み込みに失敗しました（${err.message}）。CSVファイルかご確認のうえ、もう一度お試しください。`;
     console.error('CSV load error:', err);
   }
-});
+}
+
+// ===== CSVのドラッグ&ドロップ対応 =====
+// ページ内のどこに落としてもブラウザがCSVを開いてしまわないようにガード
+window.addEventListener('dragover', (e) => { e.preventDefault(); });
+window.addEventListener('drop', (e) => { e.preventDefault(); });
+
+// 点線のアップロードボックス全体をドロップゾーンに
+(function(){
+  const box = document.querySelector('.upload-box');
+  if(!box) return;
+  let dragDepth = 0;
+  box.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragDepth++;
+    box.classList.add('dragover');
+  });
+  box.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  box.addEventListener('dragleave', () => {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if(dragDepth === 0) box.classList.remove('dragover');
+  });
+  box.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    box.classList.remove('dragover');
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file) loadCsvFile(file);
+  });
+})();
 
 
 
@@ -2299,7 +2440,87 @@ document.querySelectorAll('.vehicle-picker').forEach(picker => {
     });
   });
 });
-printBtn.addEventListener('click', () => window.print());
+// ===== 号車ごと印刷ビュー(1号車=1枚に①〜④をまとめる) =====
+function removeVehiclePrintView(){
+  const v = document.getElementById('vehiclePrintView');
+  if(v) v.remove();
+}
+function buildVehiclePrintView(){
+  removeVehiclePrintView();
+  const sections = routeResultArea.querySelectorAll('.phase-section');
+  if(!sections.length) return;
+  const metaEl = printHeader.querySelector('.meta');
+  const metaText = metaEl ? metaEl.textContent : '';
+  const titleEl = printHeader.querySelector('h2');
+  const titleText = titleEl ? titleEl.textContent : '';
+
+  // 号車番号ごとに、各区間のルート部分を収集する(担当は区間ごとに保持)
+  const sheets = new Map();
+  sections.forEach(sec => {
+    const secTitle = (sec.querySelector('.phase-section-title') || { textContent: '' }).textContent;
+    sec.querySelectorAll('.vehicle-card').forEach(card => {
+      const h3 = card.querySelector('.vehicle-head h3');
+      const m = h3 && h3.textContent.match(/(\d+)号車/);
+      if(!m) return;
+      const num = parseInt(m[1], 10);
+      const dsel = card.querySelector('.vehicle-driver-select');
+      const driver = dsel ? dsel.value : '';
+      if(!sheets.has(num)) sheets.set(num, { parts: [] });
+      const entry = sheets.get(num);
+      const clone = card.cloneNode(true);
+      ['.vehicle-head', '.vehicle-driver-row', '.alcohol-check-row'].forEach(sel => {
+        const el = clone.querySelector(sel);
+        if(el) el.remove();
+      });
+      const counts = card.querySelector('.vehicle-counts');
+      entry.parts.push({ title: secTitle, counts: counts ? counts.textContent : '', driver: driver, html: clone.innerHTML });
+    });
+  });
+  if(!sheets.size) return;
+
+  let out = '';
+  [...sheets.keys()].sort((a, b) => a - b).forEach(num => {
+    const s = sheets.get(num);
+    // 区間ごとの担当を集約:全区間同じなら見出しにまとめ、違う場合は区間ごとに表示
+    const uniqueDrivers = [...new Set(s.parts.map(p => p.driver).filter(Boolean))];
+    const sameDriver = uniqueDrivers.length === 1;
+    const headDriver = sameDriver ? uniqueDrivers[0] : (uniqueDrivers.length > 1 ? '(区間ごとに記載)' : '　　　　　');
+    out += `<div class="vehicle-print-sheet">
+      <div class="vps-head">
+        <h2>🚐 ${num}号車　<span class="vps-driver">担当：${escapeHtml(headDriver)}</span></h2>
+        <div class="vps-meta">${escapeHtml(titleText)}　${escapeHtml(metaText)}</div>
+      </div>
+      ${s.parts.map(p => {
+        const driverLabel = (!sameDriver && p.driver) ? `　担当：${p.driver}` : '';
+        return `<div class="vps-phase"><div class="vps-phase-title"><span>${escapeHtml(p.title)}</span><span class="vps-counts">${escapeHtml(p.counts)}${escapeHtml(driverLabel)}</span></div>${p.html}</div>`;
+      }).join('')}
+      ${(uniqueDrivers.length ? uniqueDrivers : ['　　　　']).map(d => `<div class="alcohol-check-row">
+        <span class="driver-print-name">${escapeHtml(d)}</span>
+        <span>アルコール：</span>
+        <div class="alcohol-check-line"></div>
+        <span>mg/L</span>
+        <span style="margin-left:8px;">確認者：</span>
+        <div class="alcohol-check-line"></div>
+      </div>`).join('')}
+    </div>`;
+  });
+  const wrap = document.createElement('div');
+  wrap.id = 'vehiclePrintView';
+  wrap.innerHTML = out;
+  routeResultArea.after(wrap);
+}
+const printStyleSelect = document.getElementById('printStyleSelect');
+function preparePrint(){
+  const byVehicle = printStyleSelect && printStyleSelect.value === 'vehicle';
+  document.body.classList.toggle('print-by-vehicle', byVehicle);
+  buildVehiclePrintView();
+}
+window.addEventListener('beforeprint', preparePrint);
+window.addEventListener('afterprint', () => {
+  removeVehiclePrintView();
+  document.body.classList.remove('print-by-vehicle');
+});
+printBtn.addEventListener('click', () => { preparePrint(); window.print(); });
 
 
 function renderAbsentList(query){
