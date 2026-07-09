@@ -1013,7 +1013,35 @@
     font-weight: 700;
     max-width: 52px;
   }
-  @media print{ .stop-move{ display:none !important; } }
+  @media print{ .stop-move, .leg-depart-edit{ display:none !important; } }
+  .leg-head-right{ display:inline-flex; align-items:center; gap:8px; margin-left:auto; }
+  .leg-depart-edit{
+    display:inline-flex; align-items:center; gap:3px;
+    font-size: 10.5px; color: var(--ink-soft);
+  }
+  .leg-depart-edit input[type="time"]{
+    height: 20px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--paper);
+    color: var(--moss-deep);
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 0 3px;
+  }
+  .leg-depart-edit .depart-reset{
+    height: 20px;
+    border: 1px solid var(--moss);
+    border-radius: 5px;
+    background: var(--paper);
+    color: var(--moss-deep);
+    font-size: 9.5px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 5px;
+  }
+  .leg-depart-edit .depart-reset:hover{ background: var(--sand); }
   .leg-route-btn{
     margin-top: 7px;
     display:inline-flex;
@@ -1884,6 +1912,7 @@ function buildClientsFromRows(rows){
       pref: parsePref(get(r, '送迎希望')),
       guideTime: parseGuideTime(get(r, '送迎時間') || get(r, '案内時間')),
       noRide: (get(r, '同乗NG') || '').split('/').map(s => s.trim()).filter(Boolean),
+      mustRide: (get(r, '同乗必須') || get(r, '夫婦') || get(r, '同乗ペア') || '').split('/').map(s => s.trim()).filter(Boolean),
     });
   }
   clients._excludedStopped = excludedStopped;
@@ -2816,7 +2845,7 @@ function buildRouteUrl(originAddr, stopAddrs, destAddr){
   return url;
 }
 
-function legHtml(legId, title, time, stops, routeUrl){
+function legHtml(legId, title, time, stops, routeUrl, alertHtml, departEditHtml){
   if(!stops.length){
     return `
     <div class="leg" id="${legId}">
@@ -2840,6 +2869,7 @@ function legHtml(legId, title, time, stops, routeUrl){
       ${isTrialStatus(s.client.status) ? '<span class="stop-trial">🔰体験</span>' : ''}
       ${s.client._isExtra ? '<span class="stop-extra">🔁振替</span>' : ''}
       ${s.resolvedPref && s.resolvedPref.type === 'first' ? '<span class="stop-pref">🔝最初希望</span>' : ''}
+      ${(s.client.mustRide && s.client.mustRide.length) ? `<span class="stop-pref">💑${escapeHtml(s.client.mustRide.join('・'))}と同乗</span>` : ''}
       ${s.resolvedPref && s.resolvedPref.type === 'fixed' ? `<span class="stop-pref">⏰${minToTime(s.resolvedPref.targetMin)}希望</span>` : ''}
       ${guideAlert !== null && guideAlert > 10 ? `<span class="stop-alert">⚠ 案内時間${minToTime(s.guideTargetMin)}と${guideAlert}分差</span>` : ''}
       ${prevDiff !== null && Math.abs(prevDiff) > 10 ? `<span class="stop-prevdiff">前回時間${minToTime(s.prevEtaMin)}と${Math.abs(prevDiff)}分差</span>` : ''}
@@ -2871,7 +2901,8 @@ function legHtml(legId, title, time, stops, routeUrl){
   }).join('');
   return `
   <div class="leg" id="${legId}">
-    <div class="leg-head"><span class="leg-title">${title}</span><span class="leg-time">${time}</span></div>
+    ${alertHtml || ''}
+    <div class="leg-head"><span class="leg-title">${title}</span><span class="leg-head-right">${departEditHtml || ''}<span class="leg-time">${time}</span></span></div>
     <ul class="leg-stops">${items}</ul>
     <a class="leg-route-btn" href="${routeUrl}" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 3 3 10.5l7 2.5 2.5 7L21 3Z"/></svg>
@@ -2893,7 +2924,7 @@ prevRouteFileInput.addEventListener('change', async (e) => {
     if(!data || !data.phases) throw new Error('invalid format');
     previousAssignment = data;
     prevRouteStatusEl.className = 'prev-route-status ok';
-    prevRouteStatusEl.textContent = `✓ ${data.day ? data.day + '曜日の' : ''}前回ルートを読み込みました（${file.name}）。同じ曜日でルートを作成すると、号車は変わっても構わないので、できるだけ前回と近いお迎え時間になるよう調整します。`;
+    prevRouteStatusEl.textContent = `✓ ${data.day ? data.day + '曜日の' : ''}前回ルートを読み込みました（${file.name}）。ルート作成時は、基本的に前回と同じ号車・同じメンバー構成で組みます（新しい方は近くの号車に合流）。`;
   }catch(err){
     previousAssignment = null;
     prevRouteStatusEl.className = 'prev-route-status err';
@@ -2956,6 +2987,10 @@ function renderLegHtmlFor(legId){
   const withEta = attachEta(entry.stops, currentOrigin, timing.departMin);
   const routeUrl = phaseRouteUrl(entry.stops, entry.mode);
   const longTrip = timing.min > 90;
+  // 出発時刻の編集コントロール(手動変更後は「↺自動」で元の自動計算に戻せる)
+  const dm = Math.round(timing.departMin);
+  const departInputVal = `${String(Math.floor(dm / 60)).padStart(2, '0')}:${String(dm % 60).padStart(2, '0')}`;
+  const departEdit = `<span class="leg-depart-edit">出発<input type="time" class="depart-time-input" data-leg-id="${legId}" value="${departInputVal}">${entry._origTiming ? `<button class="depart-reset" data-leg-id="${legId}" title="自動計算に戻す">↺自動</button>` : ''}</span>`;
   let timeLabel;
   let lateAlert = '';
   if(entry.targetTime){
@@ -2978,7 +3013,7 @@ function renderLegHtmlFor(legId){
       }
     }
   }
-  return lateAlert + legHtml(legId, '', timeLabel, withEta, routeUrl);
+  return legHtml(legId, '', timeLabel, withEta, routeUrl, lateAlert, departEdit);
 }
 
 function moveStop(legId, pos, dir){
@@ -3019,11 +3054,36 @@ routeResultArea.addEventListener('click', (e) => {
   } else if(downBtn && !downBtn.disabled){
     moveStop(downBtn.dataset.legId, parseInt(downBtn.dataset.pos, 10), 1);
   }
+  // 出発時刻を自動計算に戻す
+  const resetBtn = e.target.closest('.depart-reset');
+  if(resetBtn){
+    const entry = legRegistry[resetBtn.dataset.legId];
+    if(entry && entry._origTiming){
+      entry.fixedTime = entry._origTiming.fixedTime;
+      entry.targetTime = entry._origTiming.targetTime;
+      delete entry._origTiming;
+      const el = document.getElementById(resetBtn.dataset.legId);
+      if(el) el.outerHTML = renderLegHtmlFor(resetBtn.dataset.legId);
+    }
+  }
 });
 
 routeResultArea.addEventListener('change', (e) => {
   const sel = e.target.closest('.transfer-select');
   if(sel && sel.value !== '') transferStop(sel.dataset.legId, parseInt(sel.dataset.pos, 10), parseInt(sel.value, 10));
+
+  // 出発時刻の手動変更:以降この号車は入力した時刻で固定して再計算
+  const tIn = e.target.closest('.depart-time-input');
+  if(tIn && tIn.value){
+    const entry = legRegistry[tIn.dataset.legId];
+    if(entry){
+      if(!entry._origTiming) entry._origTiming = { fixedTime: entry.fixedTime, targetTime: entry.targetTime };
+      entry.fixedTime = tIn.value;
+      entry.targetTime = null;
+      const el = document.getElementById(tIn.dataset.legId);
+      if(el) el.outerHTML = renderLegHtmlFor(tIn.dataset.legId);
+    }
+  }
 
   const dsel = e.target.closest('.vehicle-driver-select');
   if(dsel){
@@ -3198,6 +3258,58 @@ async function buildRoutes(){
     return ngPairs.has([nameA, nameB].sort().join('|'));
   }
 
+  // 同乗必須(夫婦など)ペアを双方向で展開したSetを作る
+  function buildMustPairs(points){
+    const pairs = new Set();
+    points.forEach(p => {
+      const a = p.client.name;
+      (p.client.mustRide || []).forEach(bName => {
+        pairs.add([a, bName].sort().join('|'));
+      });
+    });
+    return pairs;
+  }
+
+  // 同乗必須ペアが別の号車に分かれていれば、同じ号車にまとめる
+  function resolveMustPairs(groups, mustPairs, ngPairs, kindTag){
+    if(mustPairs.size === 0) return groups;
+    const current = groups.map(g => g.slice());
+    const findPos = (name) => {
+      for(let gi = 0; gi < current.length; gi++){
+        const i = current[gi].findIndex(p => p.client.name === name);
+        if(i >= 0) return { gi, i };
+      }
+      return null;
+    };
+    mustPairs.forEach(key => {
+      const [a, b] = key.split('|');
+      const pa = findPos(a), pb = findPos(b);
+      if(!pa || !pb || pa.gi === pb.gi) return; // 片方欠席 or すでに同じ号車
+      const personA = current[pa.gi][pa.i], personB = current[pb.gi][pb.i];
+      // 移動先で同乗NGにならない方向を選ぶ。両方OKなら人数の少ない号車に寄せる
+      const wouldNg = (person, gi) => current[gi].some(q => isNgPair(person.client.name, q.client.name, ngPairs));
+      const bToA_ok = !wouldNg(personB, pa.gi);
+      const aToB_ok = !wouldNg(personA, pb.gi);
+      let dir = null;
+      if(bToA_ok && aToB_ok){
+        dir = current[pa.gi].length <= current[pb.gi].length ? 'bToA' : 'aToB';
+      } else if(bToA_ok){ dir = 'bToA'; }
+      else if(aToB_ok){ dir = 'aToB'; }
+      if(!dir){
+        ngViolationWarnings.push(`${a}と${b}を同じ号車にできませんでした（同乗NGと競合しています）`);
+        return;
+      }
+      if(dir === 'bToA'){
+        current[pb.gi].splice(pb.i, 1);
+        current[pa.gi].push(personB);
+      } else {
+        current[pa.gi].splice(pa.i, 1);
+        current[pb.gi].push(personA);
+      }
+    });
+    return current.map(g => orderForKind(g, kindTag));
+  }
+
   // NGペアが同じ号車に入っていれば、隣接号車と入れ替えて解消する(最大10パス)
   function resolveNgConstraints(groups, ngPairs, kindTag){
     if(ngPairs.size === 0) return groups;
@@ -3255,22 +3367,88 @@ async function buildRoutes(){
     return current.map(g => orderForKind(g, kindTag));
   }
 
+  // 前回ルートの「誰がどの号車に乗っていたか」をそのまま再現するグループを作る
+  // (再現できる利用者が少なすぎる場合は null を返して通常ロジックに任せる)
+  function buildGroupsFromPrevAssignment(points, count, prevPhaseAssignment, kindTag){
+    const prevVehicleOf = new Map(); // key -> { v: 前回の号車idx, order: 前回の訪問順 }
+    prevPhaseAssignment.forEach((vehicle, v) => {
+      (vehicle || []).forEach((entry, idx) => {
+        const key = (entry && typeof entry === 'object') ? entry.key : entry;
+        if(typeof key === 'string' && key && !prevVehicleOf.has(key)){
+          const order = (entry && typeof entry === 'object' && typeof entry.etaMin === 'number') ? entry.etaMin : idx;
+          prevVehicleOf.set(key, { v, order });
+        }
+      });
+    });
+    if(prevVehicleOf.size === 0) return null;
+
+    const grouped = Array.from({ length: count }, () => []);
+    const pool = []; // 前回に居ない新規の方、または前回の号車が今回の台数を超えている方
+    let matched = 0;
+    points.forEach(p => {
+      const info = prevVehicleOf.get(keyOfClient(p.client));
+      if(info && info.v < count){
+        grouped[info.v].push({ p, order: info.order });
+        matched++;
+      } else {
+        pool.push(p);
+      }
+    });
+    // 前回と一致する人がほとんどいなければ(例:別の曜日のデータ)、通常の地理割りに任せる
+    if(matched < Math.min(points.length, 3) || matched < points.length * 0.3) return null;
+
+    // 前回の訪問順を保ったままグループ化
+    const groups = grouped.map(g => g.sort((a, b) => a.order - b.order).map(x => x.p));
+
+    // 新規の方は「最も近い利用者がいる号車」に合流(空の号車は店舗からの距離で評価)
+    pool.forEach(p => {
+      let bestG = 0, bestD = Infinity;
+      groups.forEach((g, gi) => {
+        const d = g.length === 0
+          ? geoDist(origin, p) * 1.5   // 空車は少し不利にして、既存ルートへの相乗りを優先
+          : Math.min(...g.map(m => geoDist(m, p)));
+        if(d < bestD){ bestD = d; bestG = gi; }
+      });
+      groups[bestG].push(p);
+    });
+
+    // 構成は前回のまま、各号車内の順序だけ送迎向きに整える
+    return groups.map(g => orderForKind(g, kindTag));
+  }
+
   function buildOrderedGroups(points, count, prevPhaseAssignment, kindTag){
+    const ngPairs = buildNgPairs(points);
+    const mustPairs = buildMustPairs(points);
+    // 最終的にどの経路でも「同乗必須ペアを同じ号車にまとめる」を最後に適用する
+    const finish = (gs) => resolveMustPairs(gs, mustPairs, ngPairs, kindTag);
+
+    // 前回ルートが読み込まれている場合は、まず「前回と同じ人の構成」を再現する
+    if(prevPhaseAssignment){
+      const prevBased = buildGroupsFromPrevAssignment(points, count, prevPhaseAssignment, kindTag);
+      if(prevBased){
+        let groups = prevBased;
+        // 同乗NG制約だけは前回構成より優先して解消する
+        if(ngPairs.size > 0){
+          groups = resolveNgConstraints(groups, ngPairs, kindTag);
+        }
+        return finish(groups);
+      }
+    }
+
     // まず地理的に自然な分け方(スイープクラスタリング)を作る
     let groups = sweepCluster(points, count, origin).map(g => orderForKind(g, kindTag));
 
     // 同乗NG制約を解消する
-    const ngPairs = buildNgPairs(points);
     if(ngPairs.size > 0){
       groups = resolveNgConstraints(groups, ngPairs, kindTag);
     }
 
-    if(!prevPhaseAssignment) return groups;
+    if(!prevPhaseAssignment) return finish(groups);
 
     // 前回到着時刻が分かっている場合、お迎え時間をできるだけ前回に近づけるよう調整する
     const prevEtaMap = buildPrevEtaMap(prevPhaseAssignment);
-    if(prevEtaMap.size === 0) return groups;
-    return stabilizeByPrevTime(groups, prevEtaMap, kindTag);
+    if(prevEtaMap.size === 0) return finish(groups);
+    return finish(stabilizeByPrevTime(groups, prevEtaMap, kindTag));
   }
 
   // 各号車を仮の時刻で評価し、隣接する2点(同じ号車内、または隣り合う号車の端同士)を
