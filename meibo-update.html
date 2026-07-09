@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>送迎表用データ更新アプリ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "メイリオ", Meiryo, sans-serif; background: #f4f6f9; color: #333; font-size: 14px; }
+  header { background: #1F4E79; color: #fff; padding: 14px 24px; }
+  header h1 { font-size: 18px; }
+  header p { font-size: 12px; opacity: .85; margin-top: 2px; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .card { background: #fff; border: 1px solid #d8dee6; border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; color: #1F4E79; border-left: 4px solid #1F4E79; padding-left: 8px; margin-bottom: 12px; }
+  .uploads { display: flex; gap: 16px; flex-wrap: wrap; }
+  .up { flex: 1; min-width: 300px; border: 2px dashed #b8c4d0; border-radius: 8px; padding: 14px; background: #fafcff; }
+  .up.ok { border-color: #2e7d32; background: #f0f8f1; }
+  .up h3 { font-size: 13px; color: #1F4E79; margin-bottom: 6px; }
+  .up small { color: #777; display: block; margin-bottom: 8px; line-height: 1.5; }
+  .up .status { font-size: 12px; margin-top: 8px; color: #2e7d32; font-weight: bold; }
+  input[type=file] { font-size: 12px; width: 100%; }
+  .opts { margin-top: 10px; font-size: 13px; }
+  button.primary { background: #1F4E79; color: #fff; border: none; border-radius: 6px; padding: 10px 26px; font-size: 15px; font-family: inherit; cursor: pointer; }
+  button.primary:disabled { background: #a9b6c4; cursor: not-allowed; }
+  button.dl { background: #2e7d32; color: #fff; border: none; border-radius: 6px; padding: 9px 22px; font-size: 14px; font-family: inherit; cursor: pointer; margin-right: 10px; }
+  .summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .badge { border-radius: 6px; padding: 8px 14px; font-size: 13px; border: 1px solid #ccc; }
+  .b-total { background: #eef3f9; border-color: #1F4E79; }
+  .b-addr { background: #BDE3F5; }
+  .b-new { background: #FFF2CC; }
+  .b-status { background: #FCE4D6; }
+  .b-gone { background: #D9D9D9; }
+  .tablewrap { max-height: 520px; overflow: auto; border: 1px solid #d8dee6; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th { background: #1F4E79; color: #fff; padding: 6px 8px; position: sticky; top: 0; white-space: nowrap; }
+  td { border: 1px solid #dde3ea; padding: 4px 8px; white-space: nowrap; }
+  tr.addr td { background: #BDE3F5; }
+  tr.new td { background: #FFF2CC; }
+  tr.status td { background: #FCE4D6; }
+  tr.gone td { background: #D9D9D9; color: #666; }
+  .note { font-size: 12px; color: #666; line-height: 1.7; margin-top: 8px; }
+  #resultArea { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>送迎表用データ更新アプリ</h1>
+  <p>前月の送迎表用CSV ＋ リハプラン最新CSV → 住所・送迎時間を引き継いだ今月の送迎表用データを作成　<span style="opacity:.7">ver 1.0（2026/07/09）</span></p>
+</header>
+<main>
+  <div class="card">
+    <h2>① ファイルを取り込む</h2>
+    <div class="uploads">
+      <div class="up" id="upPast">
+        <h3>前月の送迎表用ファイル（CSV / Excel）</h3>
+        <small>列：送迎時間／氏名／カナ／識別用文字／利用ステータス／住所／種別／曜日／時間帯／送迎希望／同乗NG<br>住所・送迎時間・送迎希望・同乗NGはこのファイルから引き継ぎます</small>
+        <input type="file" id="filePast" accept=".csv,.xlsx">
+        <div class="status" id="stPast"></div>
+      </div>
+      <div class="up" id="upCur">
+        <h3>リハプラン最新CSV（利用者情報エクスポート）※Excelも可</h3>
+        <small>今月の在籍（利用中／利用中止）と利用パターンはこのファイルを反映します</small>
+        <input type="file" id="fileCur" accept=".csv,.xlsx">
+        <div class="status" id="stCur"></div>
+      </div>
+    </div>
+    <div class="opts" style="font-size:12px;color:#666;line-height:1.7">
+      <b style="color:#1F4E79">固定ルール：</b>
+      前月から引き継ぎ＝<b>送迎時間・住所・送迎希望・同乗NG</b>（＋「自家用車」×リハプラン「利用中」の人は自家用車を維持）／
+      リハプラン優先＝<b>氏名・カナ・識別用文字・利用ステータス・種別・曜日・時間帯</b>（氏名が「?」化けの人のみ前月表記を維持）
+    </div>
+    <div style="margin-top:14px">
+      <button class="primary" id="btnRun" disabled>更新データを作成</button>
+    </div>
+  </div>
+
+  <div class="card" id="resultArea">
+    <h2>② 結果プレビュー</h2>
+    <div class="summary" id="summary"></div>
+    <div style="margin-bottom:12px">
+      <button class="dl" id="btnCsv">CSVダウンロード（送迎ルートアプリ取込用）</button>
+      <button class="dl" id="btnXlsx" style="background:#1F4E79">Excelダウンロード（色付き・確認用）</button>
+      <span style="font-size:12px;color:#666">CSVはUTF-8(BOM付き)。Excelはプレビューと同じ色分け＋凡例付きです。</span>
+    </div>
+    <div class="tablewrap">
+      <table id="tbl"><thead></thead><tbody></tbody></table>
+    </div>
+    <div class="note">
+      <b>色の意味：</b>
+      <span style="background:#BDE3F5;padding:1px 8px">水色＝住所がリハプランと異なる（前月の現住所を引き継ぎ）</span>　
+      <span style="background:#FFF2CC;padding:1px 8px">黄色＝新規利用者（送迎時間の入力が必要）</span>　
+      <span style="background:#FCE4D6;padding:1px 8px">橙色＝利用ステータスが前月から変動</span>　
+      <span style="background:#D9D9D9;padding:1px 8px">灰色＝リハプラン最新データに存在しない</span><br>
+      ※ 氏名の照合はスペースの全角半角を無視し、リハプラン側の文字化け「?」（髙・栁などの異体字）はワイルドカードとして自動で名寄せします。氏名・カナ・識別用文字はリハプラン表記に更新します（「?」化けの氏名のみ前月表記を維持）。<br>
+      ※ リハプランのサンプル利用者「リハブ 太郎」は自動的に除外します。前月名簿に無い「利用中止」の人（過去に整理済みの人）も除外します。
+    </div>
+  </div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+let pastData = null, curData = null, resultRows = null;
+
+
+
+// ---- Excel(.xlsx)読込 ----
+async function readXlsx(file) {
+  if (typeof ExcelJS === 'undefined') throw new Error('Excel読込ライブラリを読み込めていません（ネット接続を確認してください）');
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  const ws = wb.worksheets[0];
+  const rows = [];
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    const arr = [];
+    const n = Math.max(row.cellCount, 11);
+    for (let i = 1; i <= n; i++) {
+      let v = row.getCell(i).value;
+      if (v == null) v = '';
+      else if (typeof v === 'object') {
+        if (v.richText) v = v.richText.map(t => t.text).join('');
+        else if (v.text) v = v.text;
+        else if (v.result !== undefined) v = v.result;
+        else if (v instanceof Date) v = v.toLocaleDateString('ja-JP');
+        else v = String(v);
+      }
+      arr.push(String(v));
+    }
+    rows.push(arr);
+  });
+  return rows;
+}
+async function readTable(file) {
+  if (/\.xlsx$/i.test(file.name)) return readXlsx(file);
+  return parseCsv(await readCsv(file));
+}
+
+// ---- CSV読込（Shift_JIS / UTF-8 自動判定）----
+async function readCsv(file) {
+  const buf = await file.arrayBuffer();
+  const u8 = new Uint8Array(buf);
+  // UTF-8 BOM
+  if (u8[0] === 0xEF && u8[1] === 0xBB && u8[2] === 0xBF) return new TextDecoder('utf-8').decode(buf);
+  const asUtf = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+  const asSjis = new TextDecoder('shift_jis', { fatal: false }).decode(buf);
+  // 置換文字が少ない方を採用
+  const bad = s => (s.match(/\uFFFD/g) || []).length;
+  return bad(asUtf) <= bad(asSjis) ? asUtf : asSjis;
+}
+function parseCsv(text) {
+  const rows = []; let row = [], field = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i+1] === '"') { field += '"'; i++; } else q = false; }
+      else field += ch;
+    } else {
+      if (ch === '"') q = true;
+      else if (ch === ',') { row.push(field); field = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.some(c => c !== '')) rows.push(row);
+        row = [];
+      } else field += ch;
+    }
+  }
+  row.push(field);
+  if (row.some(c => c !== '')) rows.push(row);
+  return rows;
+}
+
+// ---- 名寄せ ----
+const norm = s => (s || '').replace(/[ \u3000]/g, '').trim();
+function wcEq(a, b) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i] && a[i] !== '?' && a[i] !== '？' && b[i] !== '?' && b[i] !== '？') return false;
+  }
+  return true;
+}
+
+// ---- ファイル選択 ----
+async function handle(input, kind) {
+  const f = input.files[0];
+  if (!f) return;
+  let rows;
+  try { rows = await readTable(f); }
+  catch (err) { alert('ファイルを読み込めませんでした: ' + err.message); return; }
+  if (kind === 'past') {
+    // ヘッダー行（氏名列を含む行）を探す
+    const hi = rows.findIndex(r => r.includes('送迎時間') && r.includes('氏名'));
+    if (hi < 0) { alert('前月CSVの形式が違うようです（「送迎時間」「氏名」列が見つかりません）'); return; }
+    pastData = rows.slice(hi + 1).filter(r => r.length >= 6 && r[1] && !r[1].startsWith('※') && ((r[2] && r[2].trim()) || (r[5] && r[5].trim())));
+    document.getElementById('stPast').textContent = '✔ 読込完了：' + pastData.length + '名';
+    document.getElementById('upPast').classList.add('ok');
+  } else {
+    const hi = rows.findIndex(r => r[0] === '氏名');
+    if (hi < 0) { alert('リハプランCSVの形式が違うようです（「氏名」で始まるヘッダー行が見つかりません）'); return; }
+    const hdr = rows[hi];
+    const ix = {};
+    hdr.forEach((h, i) => ix[h] = i);
+    const need = ['氏名','氏名（カナ）','同姓同名識別用文字','利用ステータス','住所','利用パターン_種別','利用パターン_曜日','利用パターン_時間帯'];
+    for (const n of need) if (!(n in ix)) { alert('リハプランCSVに「' + n + '」列がありません'); return; }
+    curData = { ix, rows: rows.slice(hi + 1).filter(r => r.length > ix['住所'] && r[0] && !r[0].startsWith('※')) };
+    document.getElementById('stCur').textContent = '✔ 読込完了：' + curData.rows.length + '名';
+    document.getElementById('upCur').classList.add('ok');
+  }
+  document.getElementById('btnRun').disabled = !(pastData && curData);
+}
+document.getElementById('filePast').addEventListener('change', e => handle(e.target, 'past'));
+document.getElementById('fileCur').addEventListener('change', e => handle(e.target, 'cur'));
+
+// ---- マージ ----
+function run() {
+  const ix = curData.ix, cur = curData.rows;
+  const used = new Set();
+  const findCur = name => {
+    const n = norm(name);
+    for (let i = 0; i < cur.length; i++) {
+      if (!used.has(i) && wcEq(norm(cur[i][0]), n)) return i;
+    }
+    for (let i = 0; i < cur.length; i++) if (wcEq(norm(cur[i][0]), n)) return i;
+    return -1;
+  };
+  const out = [];
+  for (const p of pastData) {
+    const row = p.slice(0, 11);
+    while (row.length < 11) row.push('');
+    const ci = findCur(p[1]);
+    if (ci < 0) { out.push({ row, flag: 'gone' }); continue; }
+    used.add(ci);
+    const c = cur[ci];
+    let flag = '';
+    // 氏名・カナ・識別用文字：リハプラン優先（氏名の「?」化け＝異体字のみ前月表記を維持）
+    if (!/[?？]/.test(c[0])) row[1] = c[0];
+    row[2] = c[ix['氏名（カナ）']]; row[3] = c[ix['同姓同名識別用文字']];
+    // 住所：前月優先。リハプランと違えば水色
+    if (norm(row[5]) !== norm(c[ix['住所']])) flag = 'addr';
+    // ステータス：リハプラン優先。例外＝前月「自家用車」×リハプラン「利用中」のみ自家用車を維持
+    const cs = (c[ix['利用ステータス']] || '').trim(), ps = (row[4] || '').trim();
+    if (cs === '利用中' && ps === '自家用車') {
+      // 自家用車を維持
+    } else {
+      if (ps !== cs && !flag) flag = 'status';
+      row[4] = cs;
+    }
+    // 種別・曜日・時間帯：リハプラン優先
+    row[6] = c[ix['利用パターン_種別']]; row[7] = c[ix['利用パターン_曜日']]; row[8] = c[ix['利用パターン_時間帯']];
+    out.push({ row, flag });
+  }
+  // 新規
+  for (let i = 0; i < cur.length; i++) {
+    if (used.has(i)) continue;
+    const c = cur[i], name = (c[0] || '').trim();
+    if (norm(name) === 'リハブ太郎') continue;
+    const st = (c[ix['利用ステータス']] || '').trim();
+    if (st === '利用中止') continue; // 過去名簿に無い中止者は除外
+    out.push({ row: ['', name, c[ix['氏名（カナ）']], c[ix['同姓同名識別用文字']], st, c[ix['住所']],
+                     c[ix['利用パターン_種別']], c[ix['利用パターン_曜日']], c[ix['利用パターン_時間帯']], '', ''], flag: 'new' });
+  }
+  resultRows = out;
+  render(out);
+}
+document.getElementById('btnRun').addEventListener('click', run);
+
+const HDR = ['送迎時間','氏名','氏名（カナ）','同姓同名識別用文字','利用ステータス','住所','利用パターン_種別','利用パターン_曜日','利用パターン_時間帯','送迎希望','同乗NG'];
+
+function render(out) {
+  const cnt = f => out.filter(o => o.flag === f).length;
+  document.getElementById('summary').innerHTML =
+    '<span class="badge b-total">合計 ' + out.length + '名</span>' +
+    '<span class="badge b-addr">住所引継（要確認） ' + cnt('addr') + '名</span>' +
+    '<span class="badge b-new">新規（送迎時間入力） ' + cnt('new') + '名</span>' +
+    '<span class="badge b-status">ステータス変動 ' + cnt('status') + '名</span>' +
+    '<span class="badge b-gone">リハプランに無し ' + cnt('gone') + '名</span>';
+  document.querySelector('#tbl thead').innerHTML = '<tr><th>' + HDR.join('</th><th>') + '</th></tr>';
+  document.querySelector('#tbl tbody').innerHTML = out.map(o =>
+    '<tr class="' + o.flag + '"><td>' + o.row.map(c => esc(c)).join('</td><td>') + '</td></tr>').join('');
+  document.getElementById('resultArea').style.display = 'block';
+  document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
+}
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// ---- CSVダウンロード ----
+document.getElementById('btnCsv').addEventListener('click', () => {
+  const d = new Date();
+  const ym = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0');
+  const stamp = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+  const qc = v => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const lines = [
+    ['', '利用者情報', '出力日時：', stamp, '', '', '', '', '', '', ''].join(','),
+    HDR.join(','),
+    ...resultRows.map(o => o.row.map(v => qc(String(v ?? ''))).join(','))
+  ];
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '送迎表用利用者データ_' + ym + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ---- 色付きExcelダウンロード ----
+const FILLS = { addr: 'BDE3F5', new: 'FFF2CC', status: 'FCE4D6', gone: 'D9D9D9' };
+document.getElementById('btnXlsx').addEventListener('click', async () => {
+  if (!resultRows) return;
+  const d = new Date();
+  const ym = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0');
+  const stamp = d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('送迎表用利用者データ', { views: [{ state: 'frozen', ySplit: 2 }] });
+  const navy = 'FF1F4E79';
+  const thin = { style: 'thin', color: { argb: 'FFB0B0B0' } };
+  const border = { top: thin, left: thin, bottom: thin, right: thin };
+  const meiryo = { name: 'メイリオ', size: 9 };
+
+  const r1 = ws.addRow(['', '利用者情報（送迎表用）', '作成日：', stamp, '', '※前月データの住所・送迎時間を引き継ぎ', '', '', '', '', '']);
+  r1.eachCell({ includeEmpty: true }, c => { c.font = { ...meiryo, bold: true, color: { argb: navy } }; });
+  const rh = ws.addRow(HDR);
+  rh.eachCell(c => {
+    c.font = { ...meiryo, bold: true, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
+    c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    c.border = border;
+  });
+  for (const o of resultRows) {
+    const r = ws.addRow(o.row.slice(0, 11));
+    r.eachCell({ includeEmpty: true }, c => {
+      c.font = meiryo; c.border = border;
+      if (FILLS[o.flag]) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + FILLS[o.flag] } };
+    });
+  }
+  ws.autoFilter = { from: 'A2', to: 'K' + (resultRows.length + 2) };
+  [22, 14, 18, 8, 11, 42, 8, 10, 8, 14, 14].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+
+  // 凡例
+  let lr = resultRows.length + 4;
+  const legend = [
+    ['BDE3F5', '水色：住所がリハプランと異なる（現住所を引き継ぎ済み）'],
+    ['FFF2CC', '黄色：新規利用者（送迎時間の入力が必要）'],
+    ['FCE4D6', '橙色：利用ステータスが前月から変動'],
+    ['D9D9D9', '灰色：リハプラン最新データに存在しない']
+  ];
+  for (const [col, txt] of legend) {
+    const c1 = ws.getCell(lr, 1);
+    c1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + col } };
+    c1.border = border;
+    const c2 = ws.getCell(lr, 2);
+    c2.value = txt; c2.font = meiryo;
+    lr++;
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a2 = document.createElement('a');
+  a2.href = URL.createObjectURL(blob);
+  a2.download = '送迎表用利用者データ_' + ym + '.xlsx';
+  a2.click();
+  URL.revokeObjectURL(a2.href);
+});
+</script>
+</body>
+</html>
