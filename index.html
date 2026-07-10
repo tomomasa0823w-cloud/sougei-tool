@@ -3258,6 +3258,18 @@ async function buildRoutes(){
     return ngPairs.has([nameA, nameB].sort().join('|'));
   }
 
+  // 既存の訪問順を崩さずに、追加の迂回距離が最小になる位置へ1人を挿入する
+  function insertAtBestPosition(group, p){
+    let bestPos = group.length, bestCost = Infinity;
+    for(let pos = 0; pos <= group.length; pos++){
+      const prevPt = pos === 0 ? origin : group[pos - 1];
+      const nextPt = pos === group.length ? null : group[pos];
+      const cost = geoDist(prevPt, p) + (nextPt ? geoDist(p, nextPt) - geoDist(prevPt, nextPt) : 0);
+      if(cost < bestCost){ bestCost = cost; bestPos = pos; }
+    }
+    group.splice(bestPos, 0, p);
+  }
+
   // 同乗必須(夫婦など)ペアを双方向で展開したSetを作る
   function buildMustPairs(points){
     const pairs = new Set();
@@ -3301,13 +3313,14 @@ async function buildRoutes(){
       }
       if(dir === 'bToA'){
         current[pb.gi].splice(pb.i, 1);
-        current[pa.gi].push(personB);
+        insertAtBestPosition(current[pa.gi], personB);
       } else {
         current[pa.gi].splice(pa.i, 1);
-        current[pb.gi].push(personA);
+        insertAtBestPosition(current[pb.gi], personA);
       }
     });
-    return current.map(g => orderForKind(g, kindTag));
+    // 各号車の既存の順序は保持する(移動した人は挿入済み)
+    return current;
   }
 
   // NGペアが同じ号車に入っていれば、隣接号車と入れ替えて解消する(最大10パス)
@@ -3347,7 +3360,7 @@ async function buildRoutes(){
         }
         if(bestGj >= 0){
           current[gi].splice(i, 1);
-          current[bestGj].push(p);
+          insertAtBestPosition(current[bestGj], p);
           resolved = true;
           break;
         }
@@ -3364,7 +3377,8 @@ async function buildRoutes(){
       ngViolationWarnings.push(...ngWarnings);
     }
 
-    return current.map(g => orderForKind(g, kindTag));
+    // 各号車の既存の順序は保持する(移動した人は挿入済み)
+    return current;
   }
 
   // 前回ルートの「誰がどの号車に乗っていたか」をそのまま再現するグループを作る
@@ -3395,12 +3409,13 @@ async function buildRoutes(){
       }
     });
     // 前回と一致する人がほとんどいなければ(例:別の曜日のデータ)、通常の地理割りに任せる
-    if(matched < Math.min(points.length, 3) || matched < points.length * 0.3) return null;
+    if(matched < Math.min(points.length, 3) || matched < points.length * 0.2) return null;
 
     // 前回の訪問順を保ったままグループ化
     const groups = grouped.map(g => g.sort((a, b) => a.order - b.order).map(x => x.p));
 
-    // 新規の方は「最も近い利用者がいる号車」に合流(空の号車は店舗からの距離で評価)
+    // 新規の方は「最も近い利用者がいる号車」の、迂回が最小になる位置に挿入
+    // (前回メンバーの訪問順は崩さない)
     pool.forEach(p => {
       let bestG = 0, bestD = Infinity;
       groups.forEach((g, gi) => {
@@ -3409,11 +3424,11 @@ async function buildRoutes(){
           : Math.min(...g.map(m => geoDist(m, p)));
         if(d < bestD){ bestD = d; bestG = gi; }
       });
-      groups[bestG].push(p);
+      insertAtBestPosition(groups[bestG], p);
     });
 
-    // 構成は前回のまま、各号車内の順序だけ送迎向きに整える
-    return groups.map(g => orderForKind(g, kindTag));
+    // 前回の訪問順をそのまま採用する(並べ直しはしない)
+    return groups;
   }
 
   function buildOrderedGroups(points, count, prevPhaseAssignment, kindTag){
