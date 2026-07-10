@@ -1125,6 +1125,50 @@
   /* ---- Print ---- */
   .print-header{ display:none; }
   #vehiclePrintView{ display:none; } /* 号車ごと印刷ビュー(印刷時のみ表示) */
+  /* 印刷バランス計測用:画面外に印刷スタイルAと同じ寸法で仮描画して実寸を測る */
+  #vehiclePrintView.measuring{
+    display:block !important;
+    position:absolute; left:-10000px; top:0;
+    width: 746px; /* A4縦・余白6mmの印刷可能幅相当 */
+  }
+  #vehiclePrintView.measuring .vehicle-print-sheet{
+    width: 246px; border: 1px solid #B9C4BD; padding: 1px 4px; margin-bottom: 3px; box-sizing: border-box;
+  }
+  #vehiclePrintView.measuring .vps-head{ display:flex; flex-wrap:wrap; align-items:baseline; padding-bottom:1px; margin-bottom:1px; border-bottom:1px solid #ccc; }
+  #vehiclePrintView.measuring .vps-head h2{ margin:0; font-size:10.5px; }
+  #vehiclePrintView.measuring .vps-driver{ font-size:9px; }
+  #vehiclePrintView.measuring .vps-meta{ display:none; }
+  #vehiclePrintView.measuring .vps-phase{ margin-bottom:2px; }
+  #vehiclePrintView.measuring .vps-phase-title{ display:flex; justify-content:space-between; align-items:baseline; font-size:9.5px; padding-bottom:0; margin-bottom:1px; border-bottom:1px solid #ccc; }
+  #vehiclePrintView.measuring .vps-counts{ font-size:8.5px; }
+  #vehiclePrintView.measuring .leg-head{ margin-bottom:1px; padding-bottom:0; }
+  #vehiclePrintView.measuring .leg-time{ font-size:8.5px; }
+  #vehiclePrintView.measuring .leg-stops{ list-style:none; margin:0; padding:0; }
+  #vehiclePrintView.measuring .leg-stops li{ font-size:9px; padding:0.5px 2px; gap:3px; line-height:1.2; }
+  #vehiclePrintView.measuring .stop-num{ width:11px; height:11px; font-size:8px; }
+  #vehiclePrintView.measuring .stop-eta{ font-size:9px; min-width:0; }
+  #vehiclePrintView.measuring .stop-guide-time{ font-size:8px; }
+  #vehiclePrintView.measuring .stop-addr{ font-size:8.5px; }
+  #vehiclePrintView.measuring .stop-tag, #vehiclePrintView.measuring .stop-svc, #vehiclePrintView.measuring .stop-trial,
+  #vehiclePrintView.measuring .stop-extra, #vehiclePrintView.measuring .stop-pref, #vehiclePrintView.measuring .stop-alert,
+  #vehiclePrintView.measuring .stop-prevdiff{ font-size:6.5px; padding:0 2px; }
+  #vehiclePrintView.measuring .leg-late-alert, #vehiclePrintView.measuring .leg-early-alert{ font-size:7px; padding:0 3px; margin-bottom:1px; }
+  #vehiclePrintView.measuring .alcohol-check-row{ font-size:8px; margin-top:1px; padding-top:0; }
+  /* 印刷では非表示になる操作系は計測にも含めない */
+  #vehiclePrintView.measuring .stop-move,
+  #vehiclePrintView.measuring .leg-route-btn,
+  #vehiclePrintView.measuring .leg-depart-edit{ display:none !important; }
+  /* 情報ボックス(集計・欠席・自家用車)の計測用寸法 */
+  #vehiclePrintView.measuring .kind-summary-box,
+  #vehiclePrintView.measuring .absent-result-box,
+  #vehiclePrintView.measuring .car-result-box{
+    display:block; width:246px; box-sizing:border-box;
+    padding:3px 5px; margin:0 0 3px; font-size:8px; box-shadow:none; border:1px solid #ccc;
+  }
+  #vehiclePrintView.measuring .kind-summary-table{ font-size:8px; }
+  #vehiclePrintView.measuring .kind-summary-box b,
+  #vehiclePrintView.measuring .absent-result-box b,
+  #vehiclePrintView.measuring .car-result-box b{ font-size:8.5px; margin-bottom:1px; }
   .print-style-select{
     display:none;
     padding: 7px 10px;
@@ -1204,6 +1248,10 @@
     @page{ size: A4; margin: 5mm 6mm; }
     .phase-section{ display:none !important; }
     #vehiclePrintView{ display:block !important; }
+    .hd{ display:none !important; } /* 画面用ヘッダーは印刷しない */
+    /* スタイルAでは曜日以外のヘッダー情報を省き、その分本文を拡大 */
+    body:not(.print-by-vehicle) .print-header .meta{ display:none !important; }
+    body:not(.print-by-vehicle) .print-header h2{ font-size: 12px !important; margin: 0 0 2px !important; }
 
     /* 集計・欠席・自家用車の3ボックスを横並びにして1枚目上部を圧縮 */
     .kind-summary-box, .absent-result-box, .car-result-box{
@@ -1259,7 +1307,7 @@
     .vehicle-print-sheet .leg-time{ font-size: 11px; }
     .vehicle-print-sheet .leg-stops li{ font-size: 11.5px; padding: 3px 8px; gap: 6px; }
     .vehicle-print-sheet .stop-num{ width:16px; height:16px; font-size:10px; }
-    .vehicle-print-sheet .stop-eta{ font-size:11px; min-width:42px; }
+    .vehicle-print-sheet .stop-eta{ font-size:11px; min-width:42px; flex-direction: row; align-items: baseline; gap: 4px; }
     .vehicle-print-sheet .stop-guide-time{ font-size:9px; }
     .vehicle-print-sheet .stop-addr{ font-size:10.5px; }
     .vehicle-print-sheet .stop-tag, .vehicle-print-sheet .stop-svc, .vehicle-print-sheet .stop-trial,
@@ -1269,46 +1317,76 @@
     .vehicle-print-sheet .alcohol-check-row{ margin-top: 12px; }
 
     /* ===== 印刷スタイルA:全体まとめ(既定) =====
-       号車シートを改ページせず2列に流し込み、両面1枚(2ページ)以内を狙う */
+       号車シートを高さバランスで3列に詰め、片面1枚に収める
+       (列の振り分けは packSheetsIntoColumns が行う) */
     body:not(.print-by-vehicle) #vehiclePrintView{
-      display: grid !important;
-      grid-template-columns: 1fr 1fr;
-      gap: 3px 5px;
-      align-items: start;
+      display: flex !important;
+      gap: 4px;
+      align-items: flex-start;
+    }
+    body:not(.print-by-vehicle) .vps-col{
+      flex: 1 1 0;
+      min-width: 0;
+      /* 列を紙の高さまで伸ばし、号車ブロックを上下に均等分散して余白を吸収する */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 258mm;
+    }
+    /* 集計・欠席・自家用車ボックスは列内の小ピースとして配置(原本の横一列表示は消す) */
+    body:not(.print-by-vehicle) #routeResultArea .kind-summary-box,
+    body:not(.print-by-vehicle) #routeResultArea .absent-result-box,
+    body:not(.print-by-vehicle) #routeResultArea .car-result-box{ display:none !important; }
+    body:not(.print-by-vehicle) .vps-col .kind-summary-box,
+    body:not(.print-by-vehicle) .vps-col .absent-result-box,
+    body:not(.print-by-vehicle) .vps-col .car-result-box{
+      display: block !important;
+      width: 100% !important;
+      margin: 0 0 3px !important;
+      box-sizing: border-box;
+      padding: 3px 5px !important;
+      border: 1px solid #B9C4BD;
+      border-radius: 3px;
+      box-shadow: none;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     body:not(.print-by-vehicle) .vehicle-print-sheet{
+      display: block;
+      width: 100%;
       page-break-before: auto;
       break-before: auto;
       page-break-inside: avoid;
       break-inside: avoid;
       border: 1px solid #B9C4BD;
-      border-radius: 4px;
-      padding: 2px 6px;
+      border-radius: 3px;
+      padding: 1px 4px;
+      margin-bottom: calc(3px + var(--vfill, 0px) * 2);
       box-sizing: border-box;
     }
-    body:not(.print-by-vehicle) .vps-head{ border-bottom-width: 1.5px; padding-bottom: 1px; margin-bottom: 2px; }
-    body:not(.print-by-vehicle) .vps-head h2{ font-size: 10px; }
-    body:not(.print-by-vehicle) .vps-driver{ font-size: 8.5px; }
+    body:not(.print-by-vehicle) .vps-head{ border-bottom-width: 1px; padding-bottom: 1px; margin-bottom: 1px; }
+    body:not(.print-by-vehicle) .vps-head h2{ font-size: 10.5px; }
+    body:not(.print-by-vehicle) .vps-driver{ font-size: 9px; }
     body:not(.print-by-vehicle) .vps-meta{ display: none; }
-    body:not(.print-by-vehicle) .vps-phase{ margin-bottom: 3px; }
-    body:not(.print-by-vehicle) .vps-phase-title{ font-size: 8.5px; padding-bottom: 1px; margin-bottom: 1px; border-bottom-width: 1px; }
-    body:not(.print-by-vehicle) .vps-counts{ font-size: 7.5px; }
-    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-time{ font-size: 7.5px; }
-    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-stops li{ font-size: 8px; padding: 0 4px; gap: 3px; line-height: 1.15; }
-    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-num{ width: 10px; height: 10px; font-size: 7px; }
-    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-eta{ font-size: 8px; min-width: 28px; }
-    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-addr{ font-size: 7.5px; }
-    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-guide-time{ font-size: 6.5px; }
+    body:not(.print-by-vehicle) .vps-phase{ margin-bottom: calc(2px + var(--vfill, 0px)); }
+    body:not(.print-by-vehicle) .vps-phase-title{ font-size: 9.5px; padding-bottom: 0; margin-bottom: 1px; border-bottom-width: 1px; }
+    body:not(.print-by-vehicle) .vps-counts{ font-size: 8.5px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-time{ font-size: 8.5px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-stops li{ font-size: 9px; padding: calc(0.5px + var(--vfill, 0px) / 2) 2px; gap: 3px; line-height: 1.2; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-num{ width: 11px; height: 11px; font-size: 8px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-eta{ font-size: 9px; min-width: 0; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-addr{ font-size: 8.5px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-guide-time{ font-size: 8px; }
     body:not(.print-by-vehicle) .vehicle-print-sheet .stop-tag,
     body:not(.print-by-vehicle) .vehicle-print-sheet .stop-svc,
     body:not(.print-by-vehicle) .vehicle-print-sheet .stop-trial,
     body:not(.print-by-vehicle) .vehicle-print-sheet .stop-extra,
     body:not(.print-by-vehicle) .vehicle-print-sheet .stop-pref,
     body:not(.print-by-vehicle) .vehicle-print-sheet .stop-alert,
-    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-prevdiff{ font-size: 6.5px; padding: 0 2px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .stop-prevdiff{ font-size: 7px; padding: 0 2px; }
     body:not(.print-by-vehicle) .vehicle-print-sheet .leg-late-alert,
-    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-early-alert{ font-size: 7px; padding: 0 4px; margin-bottom: 1px; }
-    body:not(.print-by-vehicle) .vehicle-print-sheet .alcohol-check-row{ font-size: 7.5px; margin-top: 1px; padding-top: 1px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .leg-early-alert{ font-size: 7px; padding: 0 3px; margin-bottom: 1px; }
+    body:not(.print-by-vehicle) .vehicle-print-sheet .alcohol-check-row{ font-size: 8px; margin-top: 1px; padding-top: 0; }
 
     .vehicle-card{
       display: block;
@@ -2501,6 +2579,10 @@ function buildVehiclePrintView(){
         const el = clone.querySelector(sel);
         if(el) el.remove();
       });
+      // 印刷面積の節約:住所の都道府県名を省略(例:石川県金沢市… → 金沢市…)
+      clone.querySelectorAll('.stop-addr').forEach(a => {
+        a.textContent = a.textContent.replace(/^(石川県|富山県)/, '');
+      });
       const counts = card.querySelector('.vehicle-counts');
       entry.parts.push({ title: secTitle, counts: counts ? counts.textContent : '', driver: driver, html: clone.innerHTML });
     });
@@ -2539,10 +2621,91 @@ function buildVehiclePrintView(){
   routeResultArea.after(wrap);
 }
 const printStyleSelect = document.getElementById('printStyleSelect');
+// 全体まとめ印刷用:シートの実寸を測り「いちばん低い列」に順に積んで3列をバランスよく埋める
+function packSheetsIntoColumns(colCount){
+  const view = document.getElementById('vehiclePrintView');
+  if(!view) return;
+  const items = [...view.querySelectorAll('.vehicle-print-sheet')];
+  if(!items.length) return;
+
+  // 集計・欠席・自家用車ボックスも「詰め込み素材」として列に組み込む(小ピースとして隙間を埋める)
+  ['.kind-summary-box', '.absent-result-box', '.car-result-box'].forEach(sel => {
+    const src = routeResultArea.querySelector(sel);
+    if(src){
+      const clone = src.cloneNode(true);
+      clone.classList.add('vps-info');
+      view.appendChild(clone);
+      items.push(clone);
+    }
+  });
+
+  // 画面外に印刷と同じ寸法で仮描画し、実際の高さ(px)を測る
+  view.classList.add('measuring');
+  let heights = items.map(s => s.offsetHeight + 4);
+  view.classList.remove('measuring');
+
+  // 計測できない環境向けフォールバック(行数×行高の概算)
+  if(!heights.some(h => h > 8)){
+    heights = items.map(s => {
+      if(s.classList.contains('vps-info')) return 60; // 情報ボックスの概算高さ
+      let rows = 3 + s.querySelectorAll('.vps-phase').length * 2;
+      s.querySelectorAll('.leg-stops li').forEach(li => {
+        let lines = 1;
+        if(li.querySelector('.stop-alert')) lines += 1;
+        const addr = li.querySelector('.stop-addr');
+        if(addr && addr.textContent.length > 12) lines += 1;
+        rows += lines;
+      });
+      rows += s.querySelectorAll('.leg-late-alert, .leg-early-alert').length;
+      return rows * 13;
+    });
+  }
+
+  const cols = Array.from({ length: colCount }, () => ({ h: 0, items: [] }));
+  // 高いピースから順に「いちばん低い列」へ割り当てる(偏り防止)
+  const order = items.map((s, i) => ({ s, h: heights[i] }))
+                      .sort((a, b) => b.h - a.h);
+  order.forEach(({ s, h }) => {
+    const c = cols.reduce((a, b) => (a.h <= b.h ? a : b));
+    c.items.push(s);
+    c.h += h;
+  });
+  // 読みやすさのため:列内は号車番号順、列の並びも先頭の号車番号順に整える
+  const numOf = s => {
+    const m = (s.querySelector('.vps-head h2') || { textContent: '' }).textContent.match(/(\d+)号車/);
+    return m ? parseInt(m[1], 10) : 999;
+  };
+  cols.forEach(c => c.items.sort((a, b) => numOf(a) - numOf(b)));
+  const nonEmpty = cols.filter(c => c.items.length);
+  nonEmpty.sort((a, b) => numOf(a.items[0]) - numOf(b.items[0]));
+  view.innerHTML = '';
+  nonEmpty.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'vps-col';
+    c.items.forEach(s => el.appendChild(s));
+    view.appendChild(el);
+  });
+
+  // 注:シートの計測値は「列同士のバランス比較」にのみ使う。
+  // 絶対値はあてにならないため、縮小・拡大の自動判定には使わない。
+  // 縦の余白は .vps-col の min-height + space-between(CSS)が吸収する。
+  view.style.zoom = '';
+  view.style.removeProperty('--vfill');
+}
+
 function preparePrint(){
   const byVehicle = printStyleSelect && printStyleSelect.value === 'vehicle';
   document.body.classList.toggle('print-by-vehicle', byVehicle);
+  // 全体まとめ印刷では、ヘッダーは曜日のみのシンプル表示にする
+  const h2 = printHeader.querySelector('h2');
+  if(h2){
+    if(!h2.dataset.fullTitle) h2.dataset.fullTitle = h2.textContent;
+    h2.textContent = (!byVehicle && typeof selectedDay !== 'undefined' && selectedDay)
+      ? `${selectedDay}曜日`
+      : h2.dataset.fullTitle;
+  }
   buildVehiclePrintView();
+  if(!byVehicle) packSheetsIntoColumns(3);
 }
 window.addEventListener('beforeprint', preparePrint);
 window.addEventListener('afterprint', () => {
@@ -2923,8 +3086,28 @@ prevRouteFileInput.addEventListener('change', async (e) => {
     const data = JSON.parse(text);
     if(!data || !data.phases) throw new Error('invalid format');
     previousAssignment = data;
+    // 前回の各区間の台数を取得し、表示と台数ボタンへの反映を行う
+    const phaseNames = { amPickup: '①朝迎え', amDrop: '②昼送り', pmPickup: '③昼迎え', pmDrop: '④夕送り' };
+    const countParts = [];
+    Object.keys(phaseNames).forEach(phaseKey => {
+      const vehicles = data.phases[phaseKey];
+      if(!Array.isArray(vehicles) || vehicles.length === 0) return;
+      const n = vehicles.length;
+      countParts.push(`${phaseNames[phaseKey]}${n}台`);
+      // 3〜6台の範囲なら台数ボタンにも自動反映
+      if(n >= 3 && n <= 6){
+        selectedVehicleCounts[phaseKey] = n;
+        const picker = document.getElementById(`vehiclePicker-${phaseKey}`);
+        if(picker){
+          picker.querySelectorAll('button').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.count, 10) === n);
+          });
+        }
+      }
+    });
+    const countLabel = countParts.length ? `前回の台数【${countParts.join('・')}】を台数ボタンに反映しました(変更可)。` : '';
     prevRouteStatusEl.className = 'prev-route-status ok';
-    prevRouteStatusEl.textContent = `✓ ${data.day ? data.day + '曜日の' : ''}前回ルートを読み込みました（${file.name}）。ルート作成時は、基本的に前回と同じ号車・同じメンバー構成で組みます（新しい方は近くの号車に合流）。`;
+    prevRouteStatusEl.textContent = `✓ ${data.day ? data.day + '曜日の' : ''}前回ルートを読み込みました（${file.name}）。${countLabel}ルート作成時は、基本的に前回と同じ号車・同じメンバー構成で組みます（新しい方は近くの号車に合流）。`;
   }catch(err){
     previousAssignment = null;
     prevRouteStatusEl.className = 'prev-route-status err';
