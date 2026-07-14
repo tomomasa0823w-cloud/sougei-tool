@@ -1921,6 +1921,23 @@ function getTimeForDay(timeMap, day){
   return null;
 }
 
+// 追加利用列のパース:「水PM」「金AM」「水PM/金AM」「火(午後)」などの表記に対応
+// 時間帯の指定がない場合は defaultTime(通常の時間帯)を使う
+function parseExtraUse(value, defaultTime){
+  if(!value) return [];
+  const entries = [];
+  const re = /([月火水木金土日])\s*[（(]?\s*(AM|PM|am|pm|午前|午後)?\s*[）)]?/g;
+  let m;
+  while((m = re.exec(value)) !== null){
+    let t = (m[2] || '').toUpperCase();
+    if(t === '午前') t = 'AM';
+    else if(t === '午後') t = 'PM';
+    if(t !== 'AM' && t !== 'PM') t = (defaultTime === 'AM' || defaultTime === 'PM') ? defaultTime : 'AM';
+    entries.push({ day: m[1], time: t });
+  }
+  return entries;
+}
+
 function parsePref(value){
   if(!value) return null;
   const v = normalizeDigits(value.trim());
@@ -1991,6 +2008,7 @@ function buildClientsFromRows(rows){
       guideTime: parseGuideTime(get(r, '送迎時間') || get(r, '案内時間')),
       noRide: (get(r, '同乗NG') || '').split('/').map(s => s.trim()).filter(Boolean),
       mustRide: (get(r, '同乗必須') || get(r, '夫婦') || get(r, '同乗ペア') || '').split('/').map(s => s.trim()).filter(Boolean),
+      extraUse: parseExtraUse(get(r, '追加利用'), time),
     });
   }
   clients._excludedStopped = excludedStopped;
@@ -2779,6 +2797,17 @@ dayPicker.querySelectorAll('button').forEach(btn => {
     currentDayClients = CLIENTS
       .map((c, i) => ({ ...c, _idx: i }))
       .filter(c => (c.status === '利用中' || isTrialStatus(c.status)) && c.day && c.day.includes(selectedDay));
+    // CSVの「追加利用」列にこの曜日がある方は、正規の利用日として合流させる
+    // (リハプランの仕様上、通常パターンと別の時間帯を同じ行に書けないための列)
+    CLIENTS.forEach((c, i) => {
+      if(c.status !== '利用中' && !isTrialStatus(c.status)) return;
+      (c.extraUse || []).forEach(e => {
+        if(e.day !== selectedDay) return;
+        // 同じ時間帯で既に入っている場合のみスキップ(AM通常+PM追加の終日利用は両方入る)
+        if(currentDayClients.some(cd => cd._idx === i && cd.time === e.time)) return;
+        currentDayClients.push({ ...c, _idx: i, time: e.time });
+      });
+    });
     absentIdxSet = new Set();
     absentFilterInput.value = '';
     absentConfig.style.display = currentDayClients.length ? 'block' : 'none';
