@@ -46,7 +46,7 @@
 <body>
 <header>
   <h1>送迎表用データ更新アプリ</h1>
-  <p>前月の送迎表用CSV ＋ リハプラン最新CSV → 住所・送迎時間を引き継いだ今月の送迎表用データを作成　<span style="opacity:.7">ver 1.0（2026/07/09）</span></p>
+  <p>前月の送迎表用CSV ＋ リハプラン最新CSV → 住所・送迎時間を引き継いだ今月の送迎表用データを作成　<span style="opacity:.7">ver 1.1（2026/07/09）同乗必須・追加利用に対応</span></p>
 </header>
 <main>
   <div class="card">
@@ -54,7 +54,7 @@
     <div class="uploads">
       <div class="up" id="upPast">
         <h3>前月の送迎表用ファイル（CSV / Excel）</h3>
-        <small>列：送迎時間／氏名／カナ／識別用文字／利用ステータス／住所／種別／曜日／時間帯／送迎希望／同乗NG<br>住所・送迎時間・送迎希望・同乗NGはこのファイルから引き継ぎます</small>
+        <small>列：送迎時間〜追加利用の13列（旧11列形式も可）<br>送迎時間・住所・送迎希望・同乗NG・同乗必須・追加利用はこのファイルから引き継ぎます</small>
         <input type="file" id="filePast" accept=".csv,.xlsx">
         <div class="status" id="stPast"></div>
       </div>
@@ -67,7 +67,7 @@
     </div>
     <div class="opts" style="font-size:12px;color:#666;line-height:1.7">
       <b style="color:#1F4E79">固定ルール：</b>
-      前月から引き継ぎ＝<b>送迎時間・住所・送迎希望・同乗NG</b>（＋「自家用車」×リハプラン「利用中」の人は自家用車を維持）／
+      前月から引き継ぎ＝<b>送迎時間・住所・送迎希望・同乗NG・同乗必須・追加利用</b>（＋「自家用車」×リハプラン「利用中」の人は自家用車を維持）／
       リハプラン優先＝<b>氏名・カナ・識別用文字・利用ステータス・種別・曜日・時間帯</b>（氏名が「?」化けの人のみ前月表記を維持）
     </div>
     <div style="margin-top:14px">
@@ -225,8 +225,8 @@ function run() {
   };
   const out = [];
   for (const p of pastData) {
-    const row = p.slice(0, 11);
-    while (row.length < 11) row.push('');
+    const row = p.slice(0, 13);
+    while (row.length < 13) row.push('');
     const ci = findCur(p[1]);
     if (ci < 0) { out.push({ row, flag: 'gone' }); continue; }
     used.add(ci);
@@ -257,14 +257,14 @@ function run() {
     const st = (c[ix['利用ステータス']] || '').trim();
     if (st === '利用中止') continue; // 過去名簿に無い中止者は除外
     out.push({ row: ['', name, c[ix['氏名（カナ）']], c[ix['同姓同名識別用文字']], st, c[ix['住所']],
-                     c[ix['利用パターン_種別']], c[ix['利用パターン_曜日']], c[ix['利用パターン_時間帯']], '', ''], flag: 'new' });
+                     c[ix['利用パターン_種別']], c[ix['利用パターン_曜日']], c[ix['利用パターン_時間帯']], '', '', '', ''], flag: 'new' });
   }
   resultRows = out;
   render(out);
 }
 document.getElementById('btnRun').addEventListener('click', run);
 
-const HDR = ['送迎時間','氏名','氏名（カナ）','同姓同名識別用文字','利用ステータス','住所','利用パターン_種別','利用パターン_曜日','利用パターン_時間帯','送迎希望','同乗NG'];
+const HDR = ['送迎時間','氏名','氏名（カナ）','同姓同名識別用文字','利用ステータス','住所','利用パターン_種別','利用パターン_曜日','利用パターン_時間帯','送迎希望','同乗NG','同乗必須','追加利用'];
 
 function render(out) {
   const cnt = f => out.filter(o => o.flag === f).length;
@@ -289,7 +289,7 @@ document.getElementById('btnCsv').addEventListener('click', () => {
   const stamp = d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
   const qc = v => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
   const lines = [
-    ['', '利用者情報', '出力日時：', stamp, '', '', '', '', '', '', ''].join(','),
+    ['', '利用者情報', '出力日時：', stamp, '', '', '', '', '', '', '', '', ''].join(','),
     HDR.join(','),
     ...resultRows.map(o => o.row.map(v => qc(String(v ?? ''))).join(','))
   ];
@@ -315,7 +315,7 @@ document.getElementById('btnXlsx').addEventListener('click', async () => {
   const border = { top: thin, left: thin, bottom: thin, right: thin };
   const meiryo = { name: 'メイリオ', size: 9 };
 
-  const r1 = ws.addRow(['', '利用者情報（送迎表用）', '作成日：', stamp, '', '※前月データの住所・送迎時間を引き継ぎ', '', '', '', '', '']);
+  const r1 = ws.addRow(['', '利用者情報（送迎表用）', '作成日：', stamp, '', '※前月データの送迎時間・住所・送迎希望・同乗NG・同乗必須・追加利用を引き継ぎ', '', '', '', '', '', '', '']);
   r1.eachCell({ includeEmpty: true }, c => { c.font = { ...meiryo, bold: true, color: { argb: navy } }; });
   const rh = ws.addRow(HDR);
   rh.eachCell(c => {
@@ -325,14 +325,14 @@ document.getElementById('btnXlsx').addEventListener('click', async () => {
     c.border = border;
   });
   for (const o of resultRows) {
-    const r = ws.addRow(o.row.slice(0, 11));
+    const r = ws.addRow(o.row.slice(0, 13));
     r.eachCell({ includeEmpty: true }, c => {
       c.font = meiryo; c.border = border;
       if (FILLS[o.flag]) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + FILLS[o.flag] } };
     });
   }
-  ws.autoFilter = { from: 'A2', to: 'K' + (resultRows.length + 2) };
-  [22, 14, 18, 8, 11, 42, 8, 10, 8, 14, 14].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  ws.autoFilter = { from: 'A2', to: 'M' + (resultRows.length + 2) };
+  [22, 14, 18, 8, 11, 42, 8, 10, 8, 14, 14, 14, 12].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
 
   // 凡例
   let lr = resultRows.length + 4;
