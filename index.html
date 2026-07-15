@@ -2504,10 +2504,33 @@ const VEHICLES_BY_SHOP = {
   ],
   '額店': [
     { no: 'む20-37', type: 'ノア' },
+    { no: 'む20-38', type: 'セレナ' },
+    { no: 'む39-56', type: 'ノア' },
+    { no: 'む73-68', type: 'ノア' },
+    { no: '428', type: '' }, // 5台目・詳細待ち(かな文字・車種が分かり次第更新)
   ],
-  '富樫店': [], // 車両一覧に未登録(登録したらここに追記)
-  '婦中店': [],
-  '立山店': [],
+  '富樫店': [
+    { no: 'め・338', type: 'ノア' },
+    { no: 'は90-78', type: 'ノア' },
+    { no: 'の70-05', type: 'VOXY' },
+    { no: 'の82-66', type: 'シエンタ' },
+    { no: 'せ12-65', type: 'タント' },
+    { no: 'せ40-53', type: 'タント' },
+    { no: 'と・797', type: 'NBOX' },
+    { no: 'き78-95', type: 'ムーヴ' },
+  ],
+  '婦中店': [
+    { no: 'の34-52', type: '' },
+    { no: 'ほ78-84', type: '' },
+    { no: 'の95-03', type: '' },
+  ],
+  '立山店': [
+    { no: 'ゆ90-20', type: 'セレナ銀' },
+    { no: 'ほ64-16', type: 'セレナ白' },
+    { no: 'た89-43', type: 'ノート' },
+    { no: 'ふ29-89', type: 'デイズ' },
+    { no: 'ま84-04', type: 'ノア' },
+  ],
 };
 const vehicleCarMap = {};
 
@@ -2517,7 +2540,8 @@ function shopVehicles(){
 function buildCarSelectOptions(currentVal){
   const opts = ['<option value="">未選択</option>'];
   shopVehicles().forEach(v => {
-    opts.push(`<option value="${escapeHtml(v.no)}" ${v.no === currentVal ? 'selected' : ''}>${escapeHtml(v.no)}（${escapeHtml(v.type)}）</option>`);
+    const label = v.type ? `${v.no}（${v.type}）` : v.no;
+    opts.push(`<option value="${escapeHtml(v.no)}" ${v.no === currentVal ? 'selected' : ''}>${escapeHtml(label)}</option>`);
   });
   return opts.join('');
 }
