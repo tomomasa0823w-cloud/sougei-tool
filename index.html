@@ -75,6 +75,14 @@
     color: var(--moss-deep);
     line-height: 1.3;
   }
+  .hd-right{ display:flex; align-items:center; gap:12px; }
+  .hd-help{
+    text-decoration:none; white-space:nowrap;
+    font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:13px;
+    color:#fff; background:var(--moss); border-radius:999px; padding:8px 14px;
+    box-shadow: var(--shadow);
+  }
+  .hd-help:active{ background: var(--moss-deep); }
   .hd-count{
     text-align:right;
     font-size: 12px;
@@ -1232,7 +1240,7 @@
     display:flex; align-items:center; padding:0 5px;
     font-size:10px; font-weight:700; color:#22312C;
   }
-  #printSheet .vps-crew-box-no{ flex:0 0 58px; }
+  #printSheet .vps-crew-box-no{ flex:0 0 66px; font-size:9px; }
   #printSheet .vps-crew-box-alc{ flex:0 1 64px; }
   #printSheet .vps-crew-box-check{ flex:1 1 0; }
   /* 昼(②③)用:少し大きめ・真ん中に薄い区切り線の2段ボックス */
@@ -1634,9 +1642,12 @@
       <p class="hd-eyebrow">寿リハ ・ 送迎サポート</p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
-    <div class="hd-count">
-      登録利用者
-      <b id="totalCount">-</b>
+    <div class="hd-right">
+      <a class="hd-help" href="./manual.html" target="_blank" rel="noopener">📖 使い方</a>
+      <div class="hd-count">
+        登録利用者
+        <b id="totalCount">-</b>
+      </div>
     </div>
   </div>
 
@@ -1896,6 +1907,9 @@ document.getElementById('shopSelect').addEventListener('change', function(){
   const val = this.value;
   if(!val) return;
   const [shopName, addr] = val.split('|');
+  if(shopName !== CURRENT_SHOP_NAME){
+    Object.keys(vehicleCarMap).forEach(k => delete vehicleCarMap[k]); // 店舗が変われば車両も変わる
+  }
   CURRENT_SHOP_NAME = shopName;
   GAKU_ORIGIN = addr;
   els.originFixed.textContent = addr;
@@ -2437,6 +2451,77 @@ document.getElementById('driverImportFile').addEventListener('change', (e) => {
 // 号車ごとのドライバー選択状態 { 'amPickup-0': '川口', ... }
 const vehicleDriverMap = {};
 
+// ── 店舗別 車両ナンバー(車両一覧.xlsxより。上から1号車・2号車…の順) ──
+// 表示は「かな+番号(車種)」。号車との対応を変えたい場合はこの配列の順番を入れ替える。
+const VEHICLES_BY_SHOP = {
+  '駅西店': [
+    { no: 'め69-34', type: 'VOXY白' },
+    { no: 'の41-68', type: 'セレナ白' },
+    { no: 'ゆ65-98', type: 'セレナ白' },
+    { no: 'ほ39-45', type: 'セレナ白' },
+    { no: 'み34-04', type: 'VOXY銀' },
+    { no: 'ま76-43', type: 'ノア銀' },
+    { no: 'み16-36', type: 'シエンタ白' },
+    { no: 'む69-45', type: 'ノア銀' },
+  ],
+  '小立野店': [
+    { no: 'ね38-12', type: 'VOXY' },
+    { no: 'ふ79-99', type: 'セレナ白' },
+    { no: 'ぬ70-76', type: 'セレナ灰' },
+    { no: 'み64-33', type: 'ノア銀' },
+    { no: 'ひ67-30', type: 'セレナ銀' },
+    { no: 'ま88-47', type: 'ノア銀' },
+  ],
+  '神宮寺店': [
+    { no: 'ぬ70-77', type: 'セレナ灰' },
+    { no: 'ら46-25', type: 'セレナ白' },
+    { no: 'ま75-14', type: 'ノア銀' },
+    { no: 'ね30-76', type: 'セレナ白' },
+    { no: 'な49-06', type: 'VOXY黒' },
+    { no: 'の64-70', type: 'セレナ白' },
+  ],
+  '新神田店': [
+    { no: 'ふ84-68', type: 'セレナ銀' },
+    { no: 'ふ37-17', type: 'ノア白' },
+    { no: 'ふ37-18', type: 'ノア銀' },
+    { no: 'の74-78', type: 'VOXY白' },
+    { no: 'む83-15', type: 'ノア' },
+    { no: 'ま・7-83', type: 'セレナ銀' },
+  ],
+  '泉野店': [
+    { no: 'ほ64-70', type: 'セレナ銀' },
+    { no: 'ま・5-45', type: 'ステップW' },
+    { no: 'ま41-59', type: 'ノア' },
+    { no: 'ま83-00', type: 'セレナ白' },
+    { no: 'み91-65', type: 'セレナ白' },
+  ],
+  '松任店': [
+    { no: 'に86-37', type: 'ラウム白' },
+    { no: 'ま13-58', type: 'ノア銀' },
+    { no: 'ま57-75', type: 'VOXY銀' },
+    { no: 'み27-41', type: 'セレナ銀' },
+    { no: 'み57-86', type: 'セレナ白' },
+  ],
+  '額店': [
+    { no: 'む20-37', type: 'ノア' },
+  ],
+  '富樫店': [], // 車両一覧に未登録(登録したらここに追記)
+  '婦中店': [],
+  '立山店': [],
+};
+const vehicleCarMap = {};
+
+function shopVehicles(){
+  return VEHICLES_BY_SHOP[CURRENT_SHOP_NAME] || [];
+}
+function buildCarSelectOptions(currentVal){
+  const opts = ['<option value="">未選択</option>'];
+  shopVehicles().forEach(v => {
+    opts.push(`<option value="${escapeHtml(v.no)}" ${v.no === currentVal ? 'selected' : ''}>${escapeHtml(v.no)}（${escapeHtml(v.type)}）</option>`);
+  });
+  return opts.join('');
+}
+
 function buildDriverSelectOptions(currentVal){
   const opts = ['<option value="">未選択</option>'];
   driverNames.forEach(n => opts.push(`<option value="${escapeHtml(n)}" ${n === currentVal ? 'selected' : ''}>${escapeHtml(n)}</option>`));
@@ -2642,6 +2727,8 @@ function buildVehiclePrintView(){
       const num = parseInt(m[1], 10);
       const dsel = card.querySelector('.vehicle-driver-select');
       const driver = dsel ? dsel.value : '';
+      const csel = card.querySelector('.vehicle-carno-select');
+      const carNo = csel ? csel.value : '';
       if(!sheets.has(num)) sheets.set(num, { parts: [] });
       const entry = sheets.get(num);
       const clone = card.cloneNode(true);
@@ -2654,7 +2741,7 @@ function buildVehiclePrintView(){
         a.textContent = a.textContent.replace(/^(石川県|富山県)/, '');
       });
       const counts = card.querySelector('.vehicle-counts');
-      entry.parts.push({ title: secTitle, counts: counts ? counts.textContent : '', driver: driver, html: clone.innerHTML });
+      entry.parts.push({ title: secTitle, counts: counts ? counts.textContent : '', driver: driver, carNo: carNo, html: clone.innerHTML });
     });
   });
   if(!sheets.size) return;
@@ -2676,19 +2763,24 @@ function buildVehiclePrintView(){
         //  1行目:ドライバー氏名・車No.  2行目:アルコール・確認者
         const sessionOf = t => /①/.test(t) ? '朝' : (/④|夕/.test(t) ? '夕' : '昼');
         const sesDrivers = {};
+        const sesCars = {};
         s.parts.forEach(p => {
           const k = sessionOf(p.title);
           (sesDrivers[k] = sesDrivers[k] || []).push(p.driver || '');
+          (sesCars[k] = sesCars[k] || []).push(p.carNo || '');
         });
         const splitBox = (extra, c2, c3) => `<span class="vps-crew-box ${extra} vps-crew-split"><span class="vps-crew-slot"><i>②</i>${c2 || ''}</span><span class="vps-crew-slot"><i>③</i>${c3 || ''}</span></span>`;
         const crewRow = (ses) => {
           const ds = sesDrivers[ses] || [];
+          const cs = sesCars[ses] || [];
           const isMid = ses === '昼';
           const d2 = escapeHtml(ds[0] || '');
           const d3 = escapeHtml(ds.length > 1 ? (ds[1] || '') : (ds[0] || ''));
+          const c2 = escapeHtml(cs[0] || '');
+          const c3 = escapeHtml(cs.length > 1 ? (cs[1] || '') : (cs[0] || ''));
           // 昼は②③で担当・車・アルコール測定が別になり得るため2段分割ボックス
           const driverBox = isMid ? splitBox('', d2, d3) : `<span class="vps-crew-box">${d2}</span>`;
-          const noBox = isMid ? splitBox('vps-crew-box-no', '', '') : `<span class="vps-crew-box vps-crew-box-no"></span>`;
+          const noBox = isMid ? splitBox('vps-crew-box-no', c2, c3) : `<span class="vps-crew-box vps-crew-box-no">${c2}</span>`;
           const alcBox = isMid ? splitBox('vps-crew-box-alc', '', '') : `<span class="vps-crew-box vps-crew-box-alc"></span>`;
           return `<div class="vps-crew${isMid ? ' vps-crew-mid' : ''}">
             <span class="vps-crew-session">${ses}</span>
@@ -3430,6 +3522,20 @@ routeResultArea.addEventListener('change', (e) => {
       if(c){ const n = c.querySelector('.driver-print-name'); if(n) n.textContent = dsel.value || '　　　　'; }
     });
   }
+
+  const csel = e.target.closest('.vehicle-carno-select');
+  if(csel){
+    const key = csel.dataset.vehicleKey;
+    vehicleCarMap[key] = csel.value;
+    // 同じ号車番号の全区間に同期し、画面上の他の選択も更新
+    const vNum = key.split('-').pop();
+    ['amPickup','amDrop','pmPickup','pmDrop'].forEach(phase => {
+      vehicleCarMap[`${phase}-${vNum}`] = csel.value;
+    });
+    document.querySelectorAll(`.vehicle-carno-select`).forEach(sel => {
+      if(sel !== csel && sel.dataset.vehicleKey.split('-').pop() === vNum) sel.value = csel.value;
+    });
+  }
 });
 
 async function buildRoutes(){
@@ -3972,6 +4078,12 @@ async function buildRoutes(){
       const vehicleKey = `${phaseKey}-${i}`;
       const driverVal = vehicleDriverMap[vehicleKey] || '';
       const driverOpts = buildDriverSelectOptions(driverVal);
+      // 車No.:未選択なら自店の車両を号車順に自動割当(1号車→リスト1台目…)
+      if(vehicleCarMap[vehicleKey] === undefined){
+        const autoCar = shopVehicles()[i];
+        vehicleCarMap[vehicleKey] = autoCar ? autoCar.no : '';
+      }
+      const carOpts = buildCarSelectOptions(vehicleCarMap[vehicleKey]);
 
       section += `
       <div class="vehicle-card">
@@ -3983,6 +4095,10 @@ async function buildRoutes(){
           <span>担当：</span>
           <select class="vehicle-driver-select" data-vehicle-key="${vehicleKey}">
             ${driverOpts}
+          </select>
+          <span>車No：</span>
+          <select class="vehicle-carno-select" data-vehicle-key="${vehicleKey}">
+            ${carOpts}
           </select>
         </div>
         ${renderLegHtmlFor(legId)}
