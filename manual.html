@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>使い方・CSV作成ガイド｜寿リハ 送迎サポート</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #F4F3EC;
+    --card: #FFFFFF;
+    --ink: #22312C;
+    --ink-soft: #5A6B64;
+    --moss: #3F6E5E;
+    --moss-deep: #2C5347;
+    --moss-pale: #E4EDE8;
+    --clay: #C8714C;
+    --clay-soft: #F1DDCF;
+    --sand: #EFE9D8;
+    --warn-bg: #FBEFE6;
+    --warn-ink: #8A5A33;
+    --line: #DCE4DF;
+    --req: #B4462F;
+    --shadow: 0 1px 2px rgba(43,58,54,0.06), 0 6px 18px rgba(43,58,54,0.06);
+  }
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; scroll-padding-top: 64px; }
+  body{
+    margin:0; background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans JP", sans-serif; font-size: 15px; line-height: 1.75;
+  }
+  .wrap{ max-width: 860px; margin: 0 auto; padding: 18px 16px 80px; }
+
+  /* ヘッダー */
+  .hd{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:12px;
+    padding: 8px 2px 14px; margin-bottom: 14px;
+    border-bottom: 2px solid var(--moss);
+  }
+  .hd-eyebrow{ margin:0 0 2px; font-size:12px; font-weight:700; letter-spacing:.14em; color:var(--moss); }
+  h1{ margin:0; font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:24px; color:var(--moss-deep); }
+  .hd-app{
+    flex-shrink:0; text-decoration:none;
+    font-family:"Zen Maru Gothic",sans-serif; font-weight:700; font-size:13px;
+    color:#fff; background:var(--moss); border-radius: 999px; padding: 8px 16px;
+    box-shadow: var(--shadow);
+  }
+  .hd-app:active{ background: var(--moss-deep); }
+
+  /* 目次ナビ */
+  .nav{
+    position: sticky; top: 8px; z-index: 5;
+    display:flex; gap:6px; flex-wrap:wrap;
+    background: rgba(244,243,236,0.92); backdrop-filter: blur(4px);
+    padding: 8px 2px; margin-bottom: 10px;
+  }
+  .nav a{
+    text-decoration:none; font-size:12px; font-weight:700; color:var(--moss-deep);
+    background: var(--card); border:1px solid var(--line); border-radius:999px;
+    padding: 5px 11px; box-shadow: var(--shadow);
+  }
+  .nav a.main{ background: var(--moss); color:#fff; border-color: var(--moss); }
+
+  /* セクション */
+  section{
+    background: var(--card); border:1px solid var(--line); border-radius:16px;
+    box-shadow: var(--shadow); padding: 20px 20px 14px; margin-bottom: 16px;
+  }
+  h2{
+    margin:0 0 12px; font-family:"Zen Maru Gothic",sans-serif; font-weight:900;
+    font-size:19px; color:var(--moss-deep);
+    padding-bottom:8px; border-bottom:2px solid var(--moss);
+    display:flex; align-items:center; gap:8px;
+  }
+  h2 .num{
+    flex-shrink:0; width:28px; height:28px; border-radius:50%;
+    background:var(--moss); color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:14px;
+  }
+  h3{
+    margin:20px 0 8px; font-size:15px; font-weight:700; color:var(--moss-deep);
+    padding-left:10px; border-left:4px solid var(--moss);
+  }
+  p{ margin: 0 0 10px; }
+  ul{ margin: 0 0 12px; padding-left: 22px; }
+  li{ margin-bottom: 5px; }
+  b.hl{ color: var(--moss-deep); }
+  .req{ color: var(--req); font-weight:700; }
+  code{
+    font-family: inherit; font-weight:700; color: var(--moss-deep);
+    background: var(--moss-pale); border-radius:6px; padding: 1px 7px; font-size: 0.93em;
+  }
+
+  /* テーブル */
+  .tblwrap{ overflow-x:auto; margin: 0 -4px 14px; }
+  table{ border-collapse: collapse; width:100%; min-width: 560px; font-size: 13.5px; }
+  th, td{ border:1px solid var(--line); padding: 7px 10px; text-align:left; vertical-align:top; }
+  th{ background: var(--moss-pale); color: var(--moss-deep); font-size:12.5px; white-space:nowrap; }
+  td.c{ white-space:nowrap; }
+  tr:nth-child(even) td{ background:#FAFBFA; }
+
+  /* 注意ボックス */
+  .note{
+    display:flex; gap:10px; align-items:flex-start;
+    background: var(--warn-bg); border:1px solid #EAD4C0; border-radius:12px;
+    padding: 12px 14px; margin: 0 0 14px; font-size: 13.5px; color: var(--warn-ink);
+  }
+  .note .ic{ flex-shrink:0; }
+  .tip{
+    background: var(--moss-pale); border:1px solid var(--line); border-radius:12px;
+    padding: 12px 14px; margin: 0 0 14px; font-size: 13.5px; color: var(--moss-deep);
+  }
+
+  footer{ text-align:center; font-size:12px; color:var(--ink-soft); padding-top: 8px; }
+
+  @media (max-width: 560px){
+    h1{ font-size:20px; }
+    section{ padding: 16px 14px 10px; border-radius:14px; }
+  }
+  @media print{
+    .nav, .hd-app{ display:none; }
+    body{ background:#fff; }
+    section{ box-shadow:none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hd">
+    <div>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート</p>
+      <h1>使い方・CSV作成ガイド</h1>
+    </div>
+    <a class="hd-app" href="https://tomomasa0823w-cloud.github.io/sougei-tool/">🚐 アプリを開く</a>
+  </div>
+
+  <nav class="nav">
+    <a href="#csv" class="main">📄 CSVの作り方</a>
+    <a href="#cols">列の一覧</a>
+    <a href="#detail">重要列の詳細</a>
+    <a href="#sample">記入例</a>
+    <a href="#faq">よくある間違い</a>
+    <a href="#monthly">毎月の流れ</a>
+    <a href="#howto">基本操作</a>
+    <a href="#print">印刷</a>
+    <a href="#about">概要</a>
+  </nav>
+
+  <section id="csv">
+    <h2><span class="num">1</span>利用者データCSVの作り方(いちばん大事)</h2>
+    <p>ツールの元になるのは、毎月手作業で仕上げる<b class="hl">利用者データCSV</b>です。リハプランから出力したCSVに送迎用の列を追記して作ります(ファイル名の例:<code>送迎表用利用者データ_202607.csv</code>)。ここが正しくないとルート計算・印刷が正しく動きません。</p>
+    <h3>ファイルの基本ルール</h3>
+    <ul>
+      <li>形式はCSV。文字コードは <b class="hl">UTF-8(BOM付き)/ Shift-JIS のどちらでもOK</b>(Excelで普通に保存すれば大丈夫)。</li>
+      <li>ヘッダー行は<b class="hl">「氏名」という列名を含む行を自動検出</b>。1行目にリハプランの出力日時などが入っていても問題なし。</li>
+      <li>列の順番は自由。ただし<b class="hl">列名は下の表と完全一致</b>させる(全角カッコなども含めて)。</li>
+      <li>氏名が空欄の行、「※」で始まる行(メモ行)は読み飛ばされる。</li>
+      <li>ステータスが「利用中止」「一時休止」の行は自動除外されるので、削除しなくてよい。</li>
+    </ul>
+  </section>
+
+  <section id="cols">
+    <h2><span class="num">2</span>列の一覧(全13列)</h2>
+    <div class="tblwrap"><table>
+      <tr><th>列名</th><th>必須</th><th>内容</th><th>記入例</th></tr>
+      <tr><td class="c"><b>氏名</b></td><td class="c req">必須</td><td>利用者の氏名。空欄行・「※」始まりの行はスキップ。</td><td class="c"><code>高山 カズ子</code></td></tr>
+      <tr><td class="c">氏名（カナ）</td><td class="c">任意</td><td>振替・追加利用者の検索に使用。</td><td class="c"><code>タカヤマ カズコ</code></td></tr>
+      <tr><td class="c">同姓同名識別用文字</td><td class="c">任意</td><td>同姓同名の区別用。前回ルートとの照合キーにも使うので、一度決めたら変えない。</td><td class="c"><code>A</code></td></tr>
+      <tr><td class="c">利用ステータス</td><td class="c">任意</td><td>空欄=利用中。値ごとの動きは<a href="#detail">詳細</a>参照。</td><td class="c"><code>利用中</code></td></tr>
+      <tr><td class="c"><b>住所</b></td><td class="c req">実質必須</td><td>地図座標への変換に使用。番地まで書く。建物名はカッコ書き。空欄だと「住所未登録」でルート対象外。</td><td><code>石川県金沢市額谷3丁目46（〇〇マンション201）</code></td></tr>
+      <tr><td class="c">利用パターン_種別</td><td class="c">任意</td><td>「介護」or「総合」。集計とバッジ表示に使用。</td><td class="c"><code>介護</code></td></tr>
+      <tr><td class="c"><b>利用パターン_曜日</b></td><td class="c req">必須</td><td>利用曜日を連結して記入(区切りなし)。</td><td class="c"><code>月木</code></td></tr>
+      <tr><td class="c"><b>利用パターン_時間帯</b></td><td class="c req">必須</td><td>「AM」「PM」(午前/午後でも可)。</td><td class="c"><code>AM</code></td></tr>
+      <tr><td class="c">送迎時間</td><td class="c">任意</td><td>案内済みのお迎え時刻。曜日ごとに指定可。ルートに「案内◯:◯◯」と表示され、計算時刻と大きくズレると赤の注意表示。</td><td class="c"><code>月8:45木8:50</code></td></tr>
+      <tr><td class="c">送迎希望</td><td class="c">任意</td><td>「最初」を含む→最初にお迎え/「月9:00」形式→固定時刻希望。</td><td class="c"><code>最初</code> / <code>月9:00</code></td></tr>
+      <tr><td class="c">同乗NG</td><td class="c">任意</td><td>同じ車にできない方の氏名。複数は「/」区切り。片方に書けば双方向。</td><td class="c"><code>山田 太郎/佐藤 花子</code></td></tr>
+      <tr><td class="c">同乗必須</td><td class="c">任意</td><td>夫婦など必ず同じ車にする方。「/」区切り。列名は「夫婦」「同乗ペア」でも可。</td><td class="c"><code>高山 一郎</code></td></tr>
+      <tr><td class="c">追加利用</td><td class="c">任意</td><td>通常と別の曜日・時間帯にも利用する場合。<b class="hl">正規の利用日として扱われる</b>。</td><td class="c"><code>水PM</code></td></tr>
+    </table></div>
+  </section>
+
+  <section id="detail">
+    <h2><span class="num">3</span>重要列の詳細</h2>
+
+    <h3>利用ステータス</h3>
+    <div class="tblwrap"><table>
+      <tr><th>記入値</th><th>ツールでの扱い</th></tr>
+      <tr><td class="c">利用中(または空欄)</td><td>通常の送迎対象。</td></tr>
+      <tr><td class="c">自家用車</td><td>ルートからは除外し、「自家用車利用の方」として一覧表示。</td></tr>
+      <tr><td class="c">「体験」を含む値</td><td>送迎対象。ルート上に 🔰体験 バッジを表示(例:体験、体験2回目)。</td></tr>
+      <tr><td class="c">利用中止/一時休止</td><td>読み込み時に自動除外。</td></tr>
+    </table></div>
+
+    <h3>送迎時間(案内時間)</h3>
+    <ul>
+      <li>曜日ごとに指定:<code>月8:45木8:50</code> のように曜日+時刻を続けて書く(区切り不要)。</li>
+      <li>全曜日共通なら時刻のみ:<code>8:45</code>。「8時45分」や全角数字でも読み取れる。</li>
+      <li>記入するとルート各行に「案内◯:◯◯」と表示され、計算上の到着時刻と大きくズレた場合に赤色で注意が出る。</li>
+    </ul>
+
+    <h3>同乗NG/同乗必須</h3>
+    <ul>
+      <li>氏名は「氏名」列の表記と<b class="hl">完全一致</b>で(姓と名の間のスペースも同じに)。</li>
+      <li>複数名は「/」区切り。<b class="hl">どちらか片方の行に書くだけで双方向</b>に適用。</li>
+      <li>同乗必須のペアは自動で同じ号車に。同乗NGと矛盾する場合は無理にまとめず画面に警告。</li>
+    </ul>
+
+    <h3>追加利用(独自列・重要)</h3>
+    <p>リハプランは1人1時間帯しか登録できないため、「通常は月木AMだが水曜PMも利用」のようなケースをこの列で表現します。</p>
+    <div class="tblwrap"><table>
+      <tr><th>記入例</th><th>意味</th></tr>
+      <tr><td class="c"><code>水PM</code></td><td>水曜の午後にも利用する。</td></tr>
+      <tr><td class="c"><code>水</code></td><td>水曜にも利用(時間帯は通常パターンと同じ)。</td></tr>
+      <tr><td class="c"><code>水PM/金AM</code></td><td>複数指定。</td></tr>
+      <tr><td class="c"><code>火(午後)</code></td><td>日本語表記も可。</td></tr>
+    </table></div>
+    <div class="note"><span class="ic">⚠️</span><div>この列の曜日は<b>振替ではなく正規の利用日</b>として扱われます(「振替」タグは付かず、集計にも通常利用として反映。欠席指定も可能)。単発の振替は、この列ではなくアプリ画面の「振替・追加利用者」機能で当日操作してください。</div></div>
+  </section>
+
+  <section id="sample">
+    <h2><span class="num">4</span>記入サンプル</h2>
+    <div class="tblwrap"><table>
+      <tr><th>氏名</th><th>ステータス</th><th>曜日</th><th>時間帯</th><th>送迎時間</th><th>同乗必須</th><th>追加利用</th></tr>
+      <tr><td class="c">赤池 均</td><td class="c">利用中</td><td class="c">月</td><td class="c">AM</td><td class="c">月8:45</td><td></td><td></td></tr>
+      <tr><td class="c">高山 カズ子</td><td class="c">利用中</td><td class="c">月木</td><td class="c">AM</td><td class="c">月8:45木8:50</td><td></td><td class="c"><code>水PM</code></td></tr>
+      <tr><td class="c">田中 太郎</td><td class="c">利用中</td><td class="c">火金</td><td class="c">PM</td><td></td><td class="c"><code>田中 花子</code></td><td></td></tr>
+      <tr><td class="c">田中 花子</td><td class="c">利用中</td><td class="c">火金</td><td class="c">PM</td><td></td><td></td><td></td></tr>
+      <tr><td class="c">丸山 美智子</td><td class="c">自家用車</td><td class="c">水</td><td class="c">AM</td><td></td><td></td><td></td></tr>
+    </table></div>
+    <p style="font-size:13px;color:var(--ink-soft);">※ 同乗必須は片方の行に書くだけでOK(田中夫妻の例)。</p>
+  </section>
+
+  <section id="faq">
+    <h2><span class="num">5</span>よくある間違いと対処</h2>
+    <div class="tblwrap"><table>
+      <tr><th>症状</th><th>原因と対処</th></tr>
+      <tr><td>「氏名列が見つかりません」と出る</td><td>列名の表記ゆれ。「氏名」という見出しの列が必要(画面に検出された列名が表示されるので確認)。</td></tr>
+      <tr><td>特定の利用者がルートに出ない</td><td>①曜日・時間帯の記入漏れ ②ステータスが中止/休止 ③住所が空欄(「住所未登録」一覧に表示される)。</td></tr>
+      <tr><td>地図の位置がおかしい</td><td>住所の番地抜け・誤記。建物名は必ずカッコ書きに。</td></tr>
+      <tr><td>同乗NG/必須が効かない</td><td>氏名の表記が「氏名」列と不一致(スペース有無など)。</td></tr>
+      <tr><td>文字化けする</td><td>Excelで開き直して「CSV(コンマ区切り)」で保存し直す。</td></tr>
+    </table></div>
+  </section>
+
+  <section id="monthly">
+    <h2><span class="num">6</span>毎月の運用フロー</h2>
+    <div class="tblwrap"><table>
+      <tr><th style="width:3em;">手順</th><th>内容</th></tr>
+      <tr><td class="c">1</td><td>リハプランから当月の利用者データCSVを出力。</td></tr>
+      <tr><td class="c">2</td><td>手作業列(送迎時間・送迎希望・同乗NG・同乗必須・追加利用・識別用文字)を前月ファイルから転記・更新。※名簿マージツール(meibo-update)で自動化可。</td></tr>
+      <tr><td class="c">3</td><td>新規利用者・変更のあった方の住所や追加利用を確認して追記。</td></tr>
+      <tr><td class="c">4</td><td>完成したCSVを各店舗の共有フォルダへ。</td></tr>
+    </table></div>
+  </section>
+
+  <section id="howto">
+    <h2><span class="num">7</span>アプリの基本操作</h2>
+    <div class="tblwrap"><table>
+      <tr><th style="width:3em;">手順</th><th style="width:11em;">操作</th><th>ポイント</th></tr>
+      <tr><td class="c">1</td><td>CSV読み込み</td><td>点線の枠へドラッグ&ドロップ、または「ファイルを選択」。</td></tr>
+      <tr><td class="c">2</td><td>店舗を選択</td><td>出発地(店舗住所)と表示が切り替わる。</td></tr>
+      <tr><td class="c">3</td><td>前回ルート読込(任意)</td><td>前回保存したJSONを読み込むと、台数が自動反映され、前回と同じ号車・順番を基本にルートが組まれる。</td></tr>
+      <tr><td class="c">4</td><td>曜日を選択</td><td>欠席チェック、振替・追加利用者の登録、区間ごとの台数(3〜6台)を設定。</td></tr>
+      <tr><td class="c">5</td><td>ルート作成</td><td>①朝迎え/②昼送り/③昼迎え/④夕送りの4区間を自動生成。</td></tr>
+      <tr><td class="c">6</td><td>手動調整</td><td>▲▼で順番変更、「移動」で号車間の移動、出発時刻の変更も可(↺自動で復元)。</td></tr>
+      <tr><td class="c">7</td><td>印刷</td><td>印刷ボタン横で「全体まとめ(1枚)」「号車ごと1枚」を選択。</td></tr>
+      <tr><td class="c">8</td><td>ルート保存</td><td>「今回のルートを保存」でJSON保存 → 次回の手順3で使用。</td></tr>
+    </table></div>
+  </section>
+
+  <section id="print">
+    <h2><span class="num">8</span>印刷の仕様</h2>
+    <h3>スタイルA:全体まとめ(既定)</h3>
+    <ul>
+      <li>全号車・全区間を<b class="hl">A4縦・片面1枚</b>に自動収録。内容量に応じて自動で拡大・縮小し、紙面を使い切る。</li>
+      <li>上段に曜日・サービス別人数・欠席者(大きめ)・自家用車を集約。号車は実寸計測で3列にバランス配置。</li>
+      <li>各号車の朝・昼・夕に<b class="hl">記入欄(ドライバー氏名/車No./アルコール/確認者)</b>。昼は②③交替に備え薄い線で2段分割。ドライバー名は画面で選択済みなら印字。</li>
+    </ul>
+    <h3>スタイルB:号車ごと1枚</h3>
+    <ul><li>1号車=1枚(A4)・大きな文字。ドライバーへの個別配布用。記入欄はさらに大きいサイズ。</li></ul>
+    <h3>共通</h3>
+    <ul>
+      <li>印刷時、住所の「石川県」「富山県」は自動省略(画面表示は変わらない)。</li>
+      <li>操作ボタン類(▲▼・移動・出発時刻編集)は印刷に写らない。</li>
+    </ul>
+  </section>
+
+  <section id="about">
+    <h2><span class="num">9</span>ツール概要・更新</h2>
+    <div class="tblwrap"><table>
+      <tr><th style="width:9em;">名称</th><td>寿リハ 送迎サポート(送迎表自動生成ツール)</td></tr>
+      <tr><th>URL</th><td>https://tomomasa0823w-cloud.github.io/sougei-tool/</td></tr>
+      <tr><th>アプリ化</th><td>iPhoneはSafariの共有メニュー →「ホーム画面に追加」。</td></tr>
+      <tr><th>個人情報</th><td>CSVのデータは端末のブラウザ内だけで処理。サーバー送信・保存は一切なし。ページを閉じると消去。</td></tr>
+      <tr><th>更新方法</th><td>GitHub(sougei-tool)へindex.htmlを上書きアップロード→Commit。1〜2分で全店舗に自動反映。</td></tr>
+    </table></div>
+    <div class="note"><span class="ic">🚫</span><div>リポジトリの表示設定(Visibility)は変更しないでください。Privateにすると全店舗で即座に使えなくなります。</div></div>
+  </section>
+
+  <footer>寿リハ 送迎サポート 使い方ガイド ｜ 2026年7月版 ｜ 営業企画課</footer>
+</div>
+</body>
+</html>
