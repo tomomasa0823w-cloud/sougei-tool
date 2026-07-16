@@ -1221,7 +1221,59 @@
   /* 操作系UIはシートに含めない(計測にも印刷にも出さない) */
   #printSheet .stop-move,
   #printSheet .leg-route-btn,
+  #printSheet .stop-remove,
+  #printSheet .stop-add-btn,
+  #printSheet .vehicle-remove-btn,
+  #printSheet .phase-tools,
   #printSheet .leg-depart-edit{ display:none !important; }
+  /* ── 全体まとめ:固定グリッド(2列ブロック)── */
+  #printSheet .psg-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+  #printSheet .psg-inner{ transform-origin: top left; } /* 拡縮の基準は左上(これが無いと中央基準で余白と欠けが出る) */
+  #printSheet .psg-cell{
+    border: 1.5px solid #9AA8A1;
+    border-radius: 6px;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 3px 4px;
+    background: #fff;
+  }
+  #printSheet .psg-cell .vehicle-print-sheet{
+    border: none;
+    border-radius: 0;
+    padding: 0 2px;
+    margin: 0;
+  }
+  #printSheet .psg-info .ps-day{ margin-bottom: 5px; }
+  #printSheet .psg-info .kind-summary-box,
+  #printSheet .psg-info .absent-result-box,
+  #printSheet .psg-info .car-result-box{
+    display: block; width: auto; margin: 0 0 5px;
+    border: 1px solid #DCE4DF; border-radius: 5px; box-shadow: none;
+    padding: 4px 7px; font-size: 9px;
+  }
+  #printSheet .psg-info .absent-result-box{ font-size: 11px; line-height: 1.5; color: #111 !important; }
+  #printSheet .psg-info .absent-result-box b{ color: #111 !important; }
+  #printSheet .kind-summary-table tr.kind-summary-sub td{ color: #111 !important; }
+  #printSheet .psg-info b{ display:block; font-size: 9.5px; margin: 0 0 2px; }
+
+  /* ── 号車ごと1枚(超拡大)モード:1ページ=1号車の枠 ── */
+  #printSheet .psv-page{
+    width: 740px;
+    height: 1040px;
+    overflow: visible;
+    position: relative;
+  }
+  #printSheet .psv-inner{ transform-origin: top left; }
+  #printSheet .psv-day{
+    display:inline-flex; align-items:center;
+    font-family:"Zen Maru Gothic",sans-serif; font-weight:900; font-size:15px; color:#2C5347;
+    border:2px solid #3F6E5E; border-radius:8px; padding:2px 10px; margin-bottom:5px;
+  }
+  #printSheet .psv-page .vehicle-print-sheet{ margin-bottom:0; }
   /* 朝・昼・夕の記入欄ブロック(1行目:ドライバー・車No / 2行目:アルコール・確認者) */
   #printSheet .vps-crew{ display:flex; align-items:stretch; gap:5px; margin:3px 0 3px; }
   #printSheet .vps-crew-session{
@@ -1338,12 +1390,23 @@
     #vehiclePrintView{ display:block !important; }
     .hd{ display:none !important; } /* 画面用ヘッダーは印刷しない */
 
-    /* スタイルA:アプリ画面は出力せず #printSheet のみを紙の原点に配置 */
+    /* #printSheet 系:アプリ画面は出力せずシートのみを紙の原点に配置 */
     body.print-compact .wrap{ display:none !important; }
     body.print-compact #printSheet{
       position: static !important;
       left: auto !important;
       top: auto !important;
+    }
+    /* 号車ごと1枚(超拡大):1号車=1ページで改ページ */
+    body.print-compact #printSheet .psv-page{
+      page-break-after: always;
+      break-after: page;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    body.print-compact #printSheet .psv-page:last-child{
+      page-break-after: auto;
+      break-after: auto;
     }
 
     /* スタイルB用:集計・欠席・自家用車の3ボックスを横並びにして1枚目上部を圧縮 */
@@ -1541,6 +1604,29 @@
   }
   .absent-bulk-btn:hover{ background: var(--sand); color: var(--moss-deep); }
   /* 号車ドライバー選択セレクト */
+  .vehicle-head-right{ display:flex; align-items:center; gap:8px; }
+  .vehicle-remove-btn{
+    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+    border-radius:8px; width:26px; height:26px; cursor:pointer; font-size:12px;
+  }
+  .vehicle-remove-btn:hover{ background:var(--warn-bg); color:var(--clay); border-color:var(--clay); }
+  .stop-add-btn{
+    margin-left:auto; border:1px dashed var(--moss); background:var(--moss-pale, #E4EDE8);
+    color:var(--moss-deep); border-radius:999px; padding:4px 12px; cursor:pointer;
+    font-size:12px; font-weight:700; white-space:nowrap;
+  }
+  .stop-add-btn:hover{ background:var(--moss); color:#fff; }
+  .phase-tools{ margin:4px 0 2px; }
+  .add-vehicle-btn{
+    width:100%; border:2px dashed var(--line); background:transparent; color:var(--ink-soft);
+    border-radius:12px; padding:10px; cursor:pointer; font-size:13px; font-weight:700;
+    font-family:"Zen Maru Gothic",sans-serif;
+  }
+  .add-vehicle-btn:hover{ border-color:var(--moss); color:var(--moss-deep); background:var(--moss-pale, #E4EDE8); }
+  .stop-remove{
+    border:none; background:transparent; cursor:pointer; font-size:12px; opacity:.45; padding:2px;
+  }
+  .stop-remove:hover{ opacity:1; }
   .vehicle-driver-row{
     display:flex; align-items:center; gap:6px;
     margin-top: 8px; padding-top: 7px;
@@ -1639,11 +1725,11 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート</p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.16</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
-      <a class="hd-help" href="./manual.html" target="_blank" rel="noopener">📖 使い方</a>
+      <a class="hd-help" href="https://tomomasa0823w-cloud.github.io/sougei-tool/manual.html" target="_blank" rel="noopener">📖 使い方</a>
       <div class="hd-count">
         登録利用者
         <b id="totalCount">-</b>
@@ -1851,12 +1937,16 @@
         この一覧をA4で印刷 / PDF保存
       </button>
       <select id="printStyleSelect" class="print-style-select" title="印刷スタイルを選択">
-        <option value="compact">印刷:全体まとめ(両面1枚)</option>
-        <option value="vehicle">印刷:号車ごと1枚</option>
+        <option value="compact" selected>印刷:全体まとめ(1枚)</option>
+        <option value="vehicle">印刷:号車ごと1枚(超拡大)</option>
       </select>
       <button class="save-route-btn" id="saveRouteBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
         今回のルートを保存(次回用)
+      </button>
+      <button class="save-route-btn" id="exportCsvBtn" title="表示中のルートをCSVで一括出力">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        データ出力(CSV)
       </button>
     </div>
 
@@ -2850,7 +2940,85 @@ function removePrintSheet(){
 
 function buildPrintSheet(){
   removePrintSheet();
-  // 号車ごとシート(vps構造)は既存ビルダーを再利用して生成
+  buildVehiclePrintView();
+  const view = document.getElementById('vehiclePrintView');
+  if(!view) return;
+  const vehicleSheets = [...view.querySelectorAll('.vehicle-print-sheet')];
+  if(!vehicleSheets.length){ removeVehiclePrintView(); return; }
+
+  // ── 固定グリッド方式 ──
+  // [1号車][2号車] / [3号車][4号車] / [5号車][曜日・集計・欠席・自家用車]
+  // のように2列のブロックに区切り、各ブロックの中で内容を個別に自動拡大縮小する。
+  // ブロック割りが固定なのでバランス計算が不要で、レイアウトが崩れない。
+  const sheet = document.createElement('div');
+  sheet.id = 'printSheet';
+  const grid = document.createElement('div');
+  grid.className = 'psg-grid';
+  sheet.appendChild(grid);
+
+  const cells = [];
+  const addCell = (contentEls, extraClass) => {
+    const cell = document.createElement('div');
+    cell.className = 'psg-cell' + (extraClass ? ' ' + extraClass : '');
+    const inner = document.createElement('div');
+    inner.className = 'psg-inner';
+    contentEls.forEach(el => inner.appendChild(el));
+    cell.appendChild(inner);
+    grid.appendChild(cell);
+    cells.push(cell);
+    return cell;
+  };
+  vehicleSheets.forEach(vs => addCell([vs]));
+  // 情報ブロック(曜日・サービス別人数・欠席・自家用車)
+  const infoEls = [];
+  const dayEl = document.createElement('div');
+  dayEl.className = 'ps-day';
+  dayEl.textContent = (typeof selectedDay !== 'undefined' && selectedDay) ? `${selectedDay}曜日` : '送迎表';
+  infoEls.push(dayEl);
+  ['.kind-summary-box', '.absent-result-box', '.car-result-box'].forEach(sel => {
+    const src = routeResultArea.querySelector(sel);
+    if(src) infoEls.push(src.cloneNode(true));
+  });
+  addCell(infoEls, 'psg-info');
+
+  document.body.appendChild(sheet);
+  removeVehiclePrintView();
+
+  const BASE_W = 740, TARGET_H = 1040, GAP = 5;
+  const rows = Math.ceil(cells.length / 2);
+  const cellH = Math.floor((TARGET_H - GAP * (rows - 1)) / rows);
+  const cellW = Math.floor((BASE_W - GAP) / 2);
+  sheet.style.width = BASE_W + 'px';
+  cells.forEach(c => { c.style.height = cellH + 'px'; });
+
+  // 各ブロック内で個別に自動フィット(幾何平均収束+はみ出し最終ガード)
+  cells.forEach(cell => {
+    const inner = cell.querySelector('.psg-inner');
+    let scale = 1;
+    for(let iter = 0; iter < 5; iter++){
+      inner.style.width = Math.round(cellW / scale) + 'px';
+      const H = inner.offsetHeight;
+      if(!H) break; // 計測不能環境
+      const ideal = cellH / H;
+      let next = Math.sqrt(scale * ideal);
+      next = Math.min(2.6, Math.max(0.5, next));
+      const converged = Math.abs(next - scale) < 0.02;
+      scale = next;
+      if(converged) break;
+    }
+    inner.style.width = Math.round(cellW / scale) + 'px';
+    const finalH = inner.offsetHeight;
+    if(finalH && finalH * scale > cellH){
+      scale = Math.max(0.4, cellH / finalH); // 枠からのはみ出しは絶対に許さない
+    }
+    inner.style.transform = `scale(${scale.toFixed(3)})`;
+  });
+  document.body.classList.add('print-compact');
+}
+
+// ── 号車ごと1枚(超拡大):1号車=1ページ、各ページをA4いっぱいまで等比スケール ──
+function buildPrintSheetByVehicle(){
+  removePrintSheet();
   buildVehiclePrintView();
   const view = document.getElementById('vehiclePrintView');
   if(!view) return;
@@ -2859,93 +3027,56 @@ function buildPrintSheet(){
 
   const sheet = document.createElement('div');
   sheet.id = 'printSheet';
-
-  // --- 上段:曜日 + 集計・欠席・自家用車 ---
-  const top = document.createElement('div');
-  top.className = 'ps-top';
-  const dayEl = document.createElement('div');
-  dayEl.className = 'ps-day';
-  dayEl.textContent = (typeof selectedDay !== 'undefined' && selectedDay) ? `${selectedDay}曜日` : '送迎表';
-  top.appendChild(dayEl);
-  ['.kind-summary-box', '.absent-result-box', '.car-result-box'].forEach(sel => {
-    const src = routeResultArea.querySelector(sel);
-    if(src) top.appendChild(src.cloneNode(true));
+  const dayLabel = (typeof selectedDay !== 'undefined' && selectedDay) ? `${selectedDay}曜日` : '';
+  const pages = vehicleSheets.map(vs => {
+    const page = document.createElement('div');
+    page.className = 'psv-page';
+    const inner = document.createElement('div');
+    inner.className = 'psv-inner';
+    if(dayLabel){
+      const d = document.createElement('div');
+      d.className = 'psv-day';
+      d.textContent = dayLabel;
+      inner.appendChild(d);
+    }
+    inner.appendChild(vs);
+    page.appendChild(inner);
+    sheet.appendChild(page);
+    return page;
   });
-  sheet.appendChild(top);
-
-  // --- 本体:3列 ---
-  const colsWrap = document.createElement('div');
-  colsWrap.className = 'ps-cols';
-  const colEls = [0, 1, 2].map(() => {
-    const d = document.createElement('div');
-    d.className = 'ps-col';
-    colsWrap.appendChild(d);
-    return d;
-  });
-  sheet.appendChild(colsWrap);
   document.body.appendChild(sheet);
   removeVehiclePrintView();
 
-  const numOf = s => {
-    const m = (s.querySelector('.vps-head h2') || { textContent: '' }).textContent.match(/(\d+)号車/);
-    return m ? parseInt(m[1], 10) : 999;
-  };
-
-  // シート幅と紙の高さ(px換算)。A4縦・余白5-6mm相当
-  const BASE_W = 740;    // 印刷可能幅 ≒ 198mm
-  const TARGET_H = 1040; // 印刷可能高 ≒ 275mm
-
-  // 反復フィット:幅を 1/scale にしてレイアウト → 実高H → 印刷高 = H×scale
-  let scale = 1;
-  for(let iter = 0; iter < 5; iter++){
-    sheet.style.width = Math.round(BASE_W / scale) + 'px';
-    // 再パッキング(幅が変わると折返しが変わり号車の高さも変わるため毎回やり直す)
-    colEls.forEach(c => { c.innerHTML = ''; });
-    vehicleSheets.forEach(s => colEls[0].appendChild(s)); // 一旦置いて実寸を測る
-    const hs = vehicleSheets.map(s => s.offsetHeight + 5);
-    if(!hs.some(h => h > 10)) break; // 計測不能環境(テスト等)では等倍のまま
-    colEls[0].innerHTML = '';
-    const bins = colEls.map(el => ({ el, h: 0 }));
-    vehicleSheets
-      .map((s, i) => ({ s, h: hs[i] }))
-      .sort((a, b) => b.h - a.h)
-      .forEach(({ s, h }) => {
-        const bin = bins.reduce((x, y) => (x.h <= y.h ? x : y));
-        bin.el.appendChild(s);
-        bin.h += h;
-      });
-    // 列内は号車番号順・列の並びも先頭号車順に
-    bins.forEach(b => {
-      [...b.el.children].sort((a, c) => numOf(a) - numOf(c)).forEach(n => b.el.appendChild(n));
-    });
-    bins.sort((a, b) => (a.el.children.length ? numOf(a.el.children[0]) : 999) - (b.el.children.length ? numOf(b.el.children[0]) : 999));
-    bins.forEach(b => colsWrap.appendChild(b.el));
-
-    const H = sheet.offsetHeight; // transformの影響を受けない素のレイアウト高
-    if(!H) break;
-    const ideal = TARGET_H / H;                 // このレイアウトが紙に収まる理想倍率
-    let next = Math.sqrt(scale * ideal);        // 幾何平均で減衰(振動せず不動点へ収束)
-    next = Math.min(1.6, Math.max(0.6, next));
-    const converged = Math.abs(next - scale) < 0.015;
-    scale = next;
-    if(converged) break;
-  }
-  sheet.style.width = Math.round(BASE_W / scale) + 'px';
-  // 最終ガード:このレイアウトで実測し、はみ出すなら倍率だけ下げる(幅は据え置き=安全)
-  const finalH = sheet.offsetHeight;
-  if(finalH && finalH * scale > TARGET_H){
-    scale = Math.max(0.55, TARGET_H / finalH);
-  }
-  sheet.style.transform = `scale(${scale.toFixed(3)})`;
+  const BASE_W = 740, TARGET_H = 1040;
+  pages.forEach(page => {
+    const inner = page.querySelector('.psv-inner');
+    let scale = 1;
+    for(let iter = 0; iter < 5; iter++){
+      inner.style.width = Math.round(BASE_W / scale) + 'px';
+      const H = inner.offsetHeight;
+      if(!H) break; // 計測不能環境
+      const ideal = TARGET_H / H;
+      let next = Math.sqrt(scale * ideal); // 幾何平均で収束
+      next = Math.min(3.0, Math.max(0.6, next)); // 超拡大は最大3倍まで
+      const converged = Math.abs(next - scale) < 0.02;
+      scale = next;
+      if(converged) break;
+    }
+    inner.style.width = Math.round(BASE_W / scale) + 'px';
+    const finalH = inner.offsetHeight;
+    if(finalH && finalH * scale > TARGET_H){
+      scale = Math.max(0.5, TARGET_H / finalH); // はみ出しは絶対に許さない
+    }
+    inner.style.transform = `scale(${scale.toFixed(3)})`;
+  });
   document.body.classList.add('print-compact');
 }
 
 function preparePrint(){
   const byVehicle = printStyleSelect && printStyleSelect.value === 'vehicle';
-  document.body.classList.toggle('print-by-vehicle', byVehicle);
+  document.body.classList.remove('print-by-vehicle');
   if(byVehicle){
-    removePrintSheet();
-    buildVehiclePrintView();
+    buildPrintSheetByVehicle();
   } else {
     buildPrintSheet();
   }
@@ -2957,6 +3088,63 @@ window.addEventListener('afterprint', () => {
   document.body.classList.remove('print-by-vehicle');
 });
 printBtn.addEventListener('click', () => { preparePrint(); window.print(); });
+
+// ── ルート結果のCSV一括出力 ──
+// 画面に表示中の内容(手動調整後の最終状態)をそのまま行データ化する
+function exportRoutesCsv(){
+  const sections = routeResultArea.querySelectorAll('.phase-section');
+  if(!sections.length){ alert('先にルートを作成してください'); return; }
+  const esc = v => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = [['曜日','区間','号車','ドライバー','車No','順番','予定時刻','案内時刻','送迎','種別','氏名','住所','備考']];
+  const day = (typeof selectedDay !== 'undefined' && selectedDay) ? selectedDay : '';
+  sections.forEach(sec => {
+    const secTitle = (sec.querySelector('.phase-section-title') || { textContent: '' }).textContent.trim();
+    sec.querySelectorAll('.vehicle-card').forEach(card => {
+      const h3 = card.querySelector('.vehicle-head h3');
+      const m = h3 ? h3.textContent.match(/(\d+)号車/) : null;
+      const vNum = m ? m[1] + '号車' : '';
+      const dsel = card.querySelector('.vehicle-driver-select');
+      const driver = dsel ? dsel.value : '';
+      const csel = card.querySelector('.vehicle-carno-select');
+      const carNo = csel ? csel.value : '';
+      card.querySelectorAll('.leg-stops li').forEach(li => {
+        const num = (li.querySelector('.stop-num') || { textContent: '' }).textContent.trim();
+        const etaEl = li.querySelector('.stop-eta');
+        let eta = '', guide = '';
+        if(etaEl){
+          const g = etaEl.querySelector('.stop-guide-time');
+          guide = g ? g.textContent.replace('案内', '').trim() : '';
+          eta = etaEl.childNodes[0] ? String(etaEl.childNodes[0].textContent).trim() : '';
+        }
+        const tag = (li.querySelector('.stop-tag') || { textContent: '' }).textContent.trim();
+        const svc = (li.querySelector('.stop-svc') || { textContent: '' }).textContent.trim();
+        const name = (li.querySelector('.stop-name') || { textContent: '' }).textContent.trim();
+        const addr = (li.querySelector('.stop-addr') || { textContent: '' }).textContent.trim();
+        const notes = [];
+        if(li.querySelector('.stop-trial')) notes.push('体験');
+        if(li.querySelector('.stop-extra')) notes.push('振替');
+        li.querySelectorAll('.stop-pref').forEach(el => notes.push(el.textContent.trim()));
+        const alertEl = li.querySelector('.stop-alert');
+        if(alertEl) notes.push(alertEl.textContent.replace(/^⚠\s*/, '').trim());
+        rows.push([day, secTitle, vNum, driver, carNo, num, eta, guide, tag, svc, name, addr, notes.join(' / ')]);
+      });
+    });
+  });
+  if(rows.length === 1){ alert('出力できる行がありません'); return; }
+  const csv = '\uFEFF' + rows.map(r => r.map(esc).join(',')).join('\r\n'); // BOM付きUTF-8(Excelでそのまま開ける)
+  const now = new Date();
+  const ymd = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `送迎データ_${day ? day + '曜_' : ''}${ymd}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+document.getElementById('exportCsvBtn').addEventListener('click', exportRoutesCsv);
 
 
 function renderAbsentList(query){
@@ -3314,6 +3502,7 @@ function legHtml(legId, title, time, stops, routeUrl, alertHtml, departEditHtml)
           }
           return `<select class="transfer-select" data-leg-id="${legId}" data-pos="${i}" title="別の号車へ移動"><option value="">移動</option>${opts.join('')}</select>`;
         })()}
+        <button class="stop-remove" data-leg-id="${legId}" data-pos="${i}" title="この方をルートから外す">🗑</button>
       </span>
     </li>`;
   }).join('');
@@ -3419,6 +3608,189 @@ function phaseRouteUrl(ordered, mode){
   return buildRouteUrl(GAKU_ORIGIN, ordered.slice(0, -1).map(p => p.client.addr), last);
 }
 
+// ── 号車カードの共通テンプレート(初回生成・後からの追加の両方で使用) ──
+function buildVehicleCardHtml(phaseKey, i){
+  const legId = `leg-${phaseKey}-${i}`;
+  const entry = legRegistry[legId];
+  const vehicleKey = `${phaseKey}-${i}`;
+  const driverVal = vehicleDriverMap[vehicleKey] || '';
+  const driverOpts = buildDriverSelectOptions(driverVal);
+  // 車No.:未選択なら自店の車両を号車順に自動割当(1号車→リスト1台目…)
+  if(vehicleCarMap[vehicleKey] === undefined){
+    const autoCar = shopVehicles()[i];
+    vehicleCarMap[vehicleKey] = autoCar ? autoCar.no : '';
+  }
+  const carOpts = buildCarSelectOptions(vehicleCarMap[vehicleKey]);
+  return `
+      <div class="vehicle-card">
+        <div class="vehicle-head">
+          <h3>🚐 ${i+1}号車</h3>
+          <span class="vehicle-head-right">
+            <span class="vehicle-counts">${entry ? entry.stops.length : 0}名</span>
+            <button class="vehicle-remove-btn" data-phase="${phaseKey}" data-vidx="${i}" title="この号車を削除(空のときのみ)">✕</button>
+          </span>
+        </div>
+        <div class="vehicle-driver-row">
+          <span>担当：</span>
+          <select class="vehicle-driver-select" data-vehicle-key="${vehicleKey}">
+            ${driverOpts}
+          </select>
+          <span>車No：</span>
+          <select class="vehicle-carno-select" data-vehicle-key="${vehicleKey}">
+            ${carOpts}
+          </select>
+          <button class="stop-add-btn" data-leg-id="${legId}" title="この号車に利用者を追加">＋利用者</button>
+        </div>
+        ${renderLegHtmlFor(legId)}
+        <div class="alcohol-check-row">
+          <span class="driver-print-name">${escapeHtml(driverVal || '　　　　')}</span>
+          <span>アルコール：</span>
+          <div class="alcohol-check-line"></div>
+          <span>mg/L</span>
+          <span style="margin-left:8px;">確認者：</span>
+          <div class="alcohol-check-line"></div>
+        </div>
+      </div>`;
+}
+
+function phaseVehicleCount(phaseKey){
+  let n = 0;
+  while(legRegistry[`leg-${phaseKey}-${n}`]) n++;
+  return n;
+}
+
+function updateCardCounts(legId){
+  const el = document.getElementById(legId);
+  const entry = legRegistry[legId];
+  if(!el || !entry) return;
+  const card = el.closest('.vehicle-card');
+  if(!card) return;
+  const span = card.querySelector('.vehicle-counts');
+  if(span) span.textContent = `${entry.stops.length}名`;
+}
+
+function rerenderPhaseLegs(phaseKey){
+  for(let v = 0; legRegistry[`leg-${phaseKey}-${v}`]; v++){
+    const legId = `leg-${phaseKey}-${v}`;
+    const el = document.getElementById(legId);
+    if(el) el.outerHTML = renderLegHtmlFor(legId);
+    updateCardCounts(legId);
+  }
+}
+
+function rerenderPhaseSection(phaseKey){
+  const section = routeResultArea.querySelector(`.phase-section[data-phase="${phaseKey}"]`);
+  if(!section) return;
+  section.querySelectorAll('.vehicle-card').forEach(c => c.remove());
+  const tools = section.querySelector('.phase-tools');
+  let out = '';
+  for(let v = 0; legRegistry[`leg-${phaseKey}-${v}`]; v++) out += buildVehicleCardHtml(phaseKey, v);
+  if(tools) tools.insertAdjacentHTML('beforebegin', out);
+}
+
+// ── 号車の追加(空の号車を末尾に足す。人は「移動」で載せ替える) ──
+function addVehicleToPhase(phaseKey){
+  const ref = legRegistry[`leg-${phaseKey}-0`];
+  if(!ref) return;
+  const n = phaseVehicleCount(phaseKey);
+  legRegistry[`leg-${phaseKey}-${n}`] = { stops: [], mode: ref.mode, fixedTime: ref.fixedTime, targetTime: ref.targetTime, phaseKey };
+  if(typeof selectedVehicleCounts !== 'undefined' && selectedVehicleCounts[phaseKey] !== undefined){
+    selectedVehicleCounts[phaseKey] = Math.max(selectedVehicleCounts[phaseKey], n + 1);
+  }
+  const section = routeResultArea.querySelector(`.phase-section[data-phase="${phaseKey}"]`);
+  const tools = section ? section.querySelector('.phase-tools') : null;
+  if(tools) tools.insertAdjacentHTML('beforebegin', buildVehicleCardHtml(phaseKey, n));
+  rerenderPhaseLegs(phaseKey); // 既存の「移動」セレクトに新しい号車を反映
+}
+
+// ── 号車の削除(空のときのみ。後続の号車は前に詰めて再採番) ──
+function removeVehicleFromPhase(phaseKey, vIdx){
+  const legId = `leg-${phaseKey}-${vIdx}`;
+  const entry = legRegistry[legId];
+  if(!entry) return;
+  if(entry.stops.length){
+    alert(`${vIdx + 1}号車にはまだ利用者がいます。\n先に「移動」で他の号車へ移してから削除してください。`);
+    return;
+  }
+  const n = phaseVehicleCount(phaseKey);
+  if(n <= 1){ alert('最後の1台は削除できません'); return; }
+  if(!confirm(`${vIdx + 1}号車を削除しますか？（後ろの号車は繰り上がります）`)) return;
+  for(let v = vIdx; v < n - 1; v++){
+    legRegistry[`leg-${phaseKey}-${v}`] = legRegistry[`leg-${phaseKey}-${v + 1}`];
+    vehicleDriverMap[`${phaseKey}-${v}`] = vehicleDriverMap[`${phaseKey}-${v + 1}`] || '';
+    vehicleCarMap[`${phaseKey}-${v}`] = vehicleCarMap[`${phaseKey}-${v + 1}`];
+  }
+  delete legRegistry[`leg-${phaseKey}-${n - 1}`];
+  delete vehicleDriverMap[`${phaseKey}-${n - 1}`];
+  delete vehicleCarMap[`${phaseKey}-${n - 1}`];
+  if(typeof selectedVehicleCounts !== 'undefined' && selectedVehicleCounts[phaseKey] !== undefined){
+    selectedVehicleCounts[phaseKey] = n - 1;
+  }
+  rerenderPhaseSection(phaseKey);
+}
+
+// ── 利用者をこの区間から外す(希望すれば全区間からまとめて外す) ──
+function removeStopFromLeg(legId, pos){
+  const entry = legRegistry[legId];
+  if(!entry || !entry.stops[pos]) return;
+  const stop = entry.stops[pos];
+  const nm = stop.client.name;
+  if(!confirm(`${nm} さんをこの区間から外しますか？`)) return;
+  const removeAll = confirm(`他の区間（①〜④）からもまとめて外しますか？\n\nOK ＝ 全区間から外す（利用停止など）\nキャンセル ＝ この区間だけ外す`);
+  const sameClient = c => c && c.name === stop.client.name && (c.dup || '') === (stop.client.dup || '');
+  if(removeAll){
+    Object.keys(legRegistry).forEach(id => {
+      const en = legRegistry[id];
+      const before = en.stops.length;
+      en.stops = en.stops.filter(s => !sameClient(s.client));
+      if(en.stops.length !== before){
+        const el = document.getElementById(id);
+        if(el) el.outerHTML = renderLegHtmlFor(id);
+        updateCardCounts(id);
+      }
+    });
+  } else {
+    entry.stops.splice(pos, 1);
+    const el = document.getElementById(legId);
+    if(el) el.outerHTML = renderLegHtmlFor(legId);
+    updateCardCounts(legId);
+  }
+}
+
+// ── 利用者をこの号車に追加(登録利用者から検索、いなければ新規入力) ──
+async function addStopToLeg(legId){
+  const entry = legRegistry[legId];
+  if(!entry) return;
+  const q = prompt('追加する方の氏名を入力してください\n(登録利用者から検索します。新規の方は氏名をそのまま入力)');
+  if(!q || !q.trim()) return;
+  const qq = q.trim();
+  const hits = CLIENTS.map((c, i) => ({ c, i }))
+    .filter(x => (x.c.name && x.c.name.replace(/\s/g,'').includes(qq.replace(/\s/g,''))) || (x.c.kana && x.c.kana.includes(qq)));
+  let client = null;
+  if(hits.length === 1){
+    client = { ...hits[0].c };
+  } else if(hits.length > 1){
+    const listed = hits.slice(0, 9);
+    const pick = prompt('複数見つかりました。番号で選んでください：\n' +
+      listed.map((h, ix) => `${ix + 1}. ${h.c.name}${h.c.dup ? '(' + h.c.dup + ')' : ''}　${h.c.day || ''}${h.c.time || ''}`).join('\n'));
+    const px = parseInt(pick, 10);
+    if(!px || !listed[px - 1]) return;
+    client = { ...listed[px - 1].c };
+  } else {
+    if(!confirm(`「${qq}」は登録利用者に見つかりませんでした。\n新規の方として追加しますか？`)) return;
+    const addr = prompt('住所を入力してください(例:石川県金沢市額谷3丁目46)');
+    if(!addr || !addr.trim()) return;
+    client = { name: qq, addr: addr.trim(), kana: '', dup: '', kind: '', status: '利用中', day: '', time: '', noRide: [], mustRide: [], extraUse: [] };
+  }
+  if(!client.addr){ alert('この方は住所が未登録のため追加できません'); return; }
+  const pt = await geocode(client.addr);
+  if(!pt){ alert('住所の位置が見つかりませんでした。住所の表記を確認してください。'); return; }
+  entry.stops.push({ client, lat: pt.lat, lng: pt.lng, kind: legId.includes('Pickup') ? 'pick' : 'drop' });
+  const el = document.getElementById(legId);
+  if(el) el.outerHTML = renderLegHtmlFor(legId);
+  updateCardCounts(legId);
+}
+
 function renderLegHtmlFor(legId){
   const entry = legRegistry[legId];
   const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime);
@@ -3477,11 +3849,13 @@ function transferStop(fromLegId, pos, toVehicleIdx){
   // 元号車から取り出して移動先号車の末尾に追加
   const [stop] = fromEntry.stops.splice(pos, 1);
   toEntry.stops.push(stop);
-  // 両号車を再描画
+  // 両号車を再描画し、人数表示も更新
   const fromEl = document.getElementById(fromLegId);
   if(fromEl) fromEl.outerHTML = renderLegHtmlFor(fromLegId);
   const toEl = document.getElementById(toLegId);
   if(toEl) toEl.outerHTML = renderLegHtmlFor(toLegId);
+  updateCardCounts(fromLegId);
+  updateCardCounts(toLegId);
 }
 
 routeResultArea.addEventListener('click', (e) => {
@@ -3491,6 +3865,26 @@ routeResultArea.addEventListener('click', (e) => {
     moveStop(upBtn.dataset.legId, parseInt(upBtn.dataset.pos, 10), -1);
   } else if(downBtn && !downBtn.disabled){
     moveStop(downBtn.dataset.legId, parseInt(downBtn.dataset.pos, 10), 1);
+  }
+  // 利用者をルートから外す
+  const rmStop = e.target.closest('.stop-remove');
+  if(rmStop){
+    removeStopFromLeg(rmStop.dataset.legId, parseInt(rmStop.dataset.pos, 10));
+  }
+  // 利用者を追加
+  const addStop = e.target.closest('.stop-add-btn');
+  if(addStop){
+    addStopToLeg(addStop.dataset.legId);
+  }
+  // 号車を追加
+  const addV = e.target.closest('.add-vehicle-btn');
+  if(addV){
+    addVehicleToPhase(addV.dataset.phase);
+  }
+  // 号車を削除
+  const rmV = e.target.closest('.vehicle-remove-btn');
+  if(rmV){
+    removeVehicleFromPhase(rmV.dataset.phase, parseInt(rmV.dataset.vidx, 10));
   }
   // 出発時刻を自動計算に戻す
   const resetBtn = e.target.closest('.depart-reset');
@@ -3526,25 +3920,13 @@ routeResultArea.addEventListener('change', (e) => {
   const dsel = e.target.closest('.vehicle-driver-select');
   if(dsel){
     const key = dsel.dataset.vehicleKey;
+    // 区間(①②③④)ごとに別の担当者を選べるよう、他区間へは同期しない
     vehicleDriverMap[key] = dsel.value;
-    // 同じphaseの全区間に同じ号車番号があれば同期
-    const vNum = key.split('-').pop();
-    ['amPickup','amDrop','pmPickup','pmDrop'].forEach(phase => {
-      const k = `${phase}-${vNum}`;
-      if(k !== key) vehicleDriverMap[k] = dsel.value;
-    });
-    // アルコール欄の印刷用名前を更新
     const card = dsel.closest('.vehicle-card');
     if(card){
       const nameEl = card.querySelector('.driver-print-name');
       if(nameEl) nameEl.textContent = dsel.value || '　　　　';
     }
-    // 他の区間の同じ号車のセレクトも同期
-    document.querySelectorAll(`.vehicle-driver-select[data-vehicle-key$="-${vNum}"]`).forEach(s => {
-      s.value = dsel.value;
-      const c = s.closest('.vehicle-card');
-      if(c){ const n = c.querySelector('.driver-print-name'); if(n) n.textContent = dsel.value || '　　　　'; }
-    });
   }
 
   const csel = e.target.closest('.vehicle-carno-select');
@@ -3711,13 +4093,30 @@ async function buildRoutes(){
   }
 
   // 既存の訪問順を崩さずに、追加の迂回距離が最小になる位置へ1人を挿入する
-  function insertAtBestPosition(group, p){
-    let bestPos = group.length, bestCost = Infinity;
-    for(let pos = 0; pos <= group.length; pos++){
+  function insertAtBestPosition(group, p, kindTag){
+    // 評価 = 回り道の増加(主) + その方の乗車距離×0.15(従)。
+    // 店の近くの方はループのどこに入れても総距離がほぼ同じため、回り道だけで選ぶと
+    // 先頭に入って全周付き合わされることがある。乗車距離の軽いペナルティで
+    // 「近い人ほど後ろ(=乗車時間が短い)」に自然に決まる。
+    const n = group.length;
+    // ret[i] = group[i] から店に戻るまでの走行距離(迎えのループ経路用)
+    const ret = new Array(Math.max(n, 1)).fill(0);
+    if(kindTag === 'pick' && n > 0){
+      ret[n - 1] = geoDist(group[n - 1], origin);
+      for(let i = n - 2; i >= 0; i--) ret[i] = geoDist(group[i], group[i + 1]) + ret[i + 1];
+    }
+    let bestPos = n, bestScore = Infinity;
+    for(let pos = 0; pos <= n; pos++){
       const prevPt = pos === 0 ? origin : group[pos - 1];
-      const nextPt = pos === group.length ? null : group[pos];
-      const cost = geoDist(prevPt, p) + (nextPt ? geoDist(p, nextPt) - geoDist(prevPt, nextPt) : 0);
-      if(cost < bestCost){ bestCost = cost; bestPos = pos; }
+      // 迎え(ループ経路)は末尾挿入も「店へ戻る」までを含めて公平に評価する
+      const nextPt = pos === n ? (kindTag === 'pick' ? origin : null) : group[pos];
+      const detour = geoDist(prevPt, p) + (nextPt ? geoDist(p, nextPt) - geoDist(prevPt, nextPt) : 0);
+      let score = detour;
+      if(kindTag === 'pick'){
+        const rideDist = pos === n ? geoDist(p, origin) : geoDist(p, group[pos]) + ret[pos];
+        score += rideDist * 0.15;
+      }
+      if(score < bestScore){ bestScore = score; bestPos = pos; }
     }
     group.splice(bestPos, 0, p);
   }
@@ -3765,10 +4164,10 @@ async function buildRoutes(){
       }
       if(dir === 'bToA'){
         current[pb.gi].splice(pb.i, 1);
-        insertAtBestPosition(current[pa.gi], personB);
+        insertAtBestPosition(current[pa.gi], personB, kindTag);
       } else {
         current[pa.gi].splice(pa.i, 1);
-        insertAtBestPosition(current[pb.gi], personA);
+        insertAtBestPosition(current[pb.gi], personA, kindTag);
       }
     });
     // 各号車の既存の順序は保持する(移動した人は挿入済み)
@@ -3812,7 +4211,7 @@ async function buildRoutes(){
         }
         if(bestGj >= 0){
           current[gi].splice(i, 1);
-          insertAtBestPosition(current[bestGj], p);
+          insertAtBestPosition(current[bestGj], p, kindTag);
           resolved = true;
           break;
         }
@@ -3876,7 +4275,7 @@ async function buildRoutes(){
           : Math.min(...g.map(m => geoDist(m, p)));
         if(d < bestD){ bestD = d; bestG = gi; }
       });
-      insertAtBestPosition(groups[bestG], p);
+      insertAtBestPosition(groups[bestG], p, kindTag);
     });
 
     // 前回の訪問順をそのまま採用する(並べ直しはしない)
@@ -4099,43 +4498,9 @@ async function buildRoutes(){
       const legId = `leg-${phaseKey}-${i}`;
       legRegistry[legId] = { stops: orderedWithGuide, mode, fixedTime: effectiveFixedTime, targetTime: effectiveTargetTime, phaseKey };
 
-      const vehicleKey = `${phaseKey}-${i}`;
-      const driverVal = vehicleDriverMap[vehicleKey] || '';
-      const driverOpts = buildDriverSelectOptions(driverVal);
-      // 車No.:未選択なら自店の車両を号車順に自動割当(1号車→リスト1台目…)
-      if(vehicleCarMap[vehicleKey] === undefined){
-        const autoCar = shopVehicles()[i];
-        vehicleCarMap[vehicleKey] = autoCar ? autoCar.no : '';
-      }
-      const carOpts = buildCarSelectOptions(vehicleCarMap[vehicleKey]);
-
-      section += `
-      <div class="vehicle-card">
-        <div class="vehicle-head">
-          <h3>🚐 ${i+1}号車</h3>
-          <span class="vehicle-counts">${groupOrdered.length}名</span>
-        </div>
-        <div class="vehicle-driver-row">
-          <span>担当：</span>
-          <select class="vehicle-driver-select" data-vehicle-key="${vehicleKey}">
-            ${driverOpts}
-          </select>
-          <span>車No：</span>
-          <select class="vehicle-carno-select" data-vehicle-key="${vehicleKey}">
-            ${carOpts}
-          </select>
-        </div>
-        ${renderLegHtmlFor(legId)}
-        <div class="alcohol-check-row">
-          <span class="driver-print-name">${escapeHtml(driverVal || '　　　　')}</span>
-          <span>アルコール：</span>
-          <div class="alcohol-check-line"></div>
-          <span>mg/L</span>
-          <span style="margin-left:8px;">確認者：</span>
-          <div class="alcohol-check-line"></div>
-        </div>
-      </div>`;
+      section += buildVehicleCardHtml(phaseKey, i);
     }
+    section += `<div class="phase-tools"><button class="add-vehicle-btn" data-phase="${phaseKey}">＋ 号車を追加</button></div>`;
     section += `</div>`;
     return section;
   }
