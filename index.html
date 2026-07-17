@@ -2990,26 +2990,30 @@ function buildPrintSheet(){
   const cellW = Math.floor((BASE_W - GAP) / 2);
   sheet.style.width = BASE_W + 'px';
   cells.forEach(c => { c.style.height = cellH + 'px'; });
+  // フィット計算は枠の「内側」の寸法で行う(枠線1.5px+内側余白ぶんを差し引く。
+  // これを引かないと内容が外寸基準で拡大され、行数の多いブロックの最終行が切れる)
+  const availH = cellH - 12;
+  const availW = cellW - 13;
 
   // 各ブロック内で個別に自動フィット(幾何平均収束+はみ出し最終ガード)
   cells.forEach(cell => {
     const inner = cell.querySelector('.psg-inner');
     let scale = 1;
     for(let iter = 0; iter < 5; iter++){
-      inner.style.width = Math.round(cellW / scale) + 'px';
+      inner.style.width = Math.round(availW / scale) + 'px';
       const H = inner.offsetHeight;
       if(!H) break; // 計測不能環境
-      const ideal = cellH / H;
+      const ideal = availH / H;
       let next = Math.sqrt(scale * ideal);
       next = Math.min(2.6, Math.max(0.5, next));
       const converged = Math.abs(next - scale) < 0.02;
       scale = next;
       if(converged) break;
     }
-    inner.style.width = Math.round(cellW / scale) + 'px';
+    inner.style.width = Math.round(availW / scale) + 'px';
     const finalH = inner.offsetHeight;
-    if(finalH && finalH * scale > cellH){
-      scale = Math.max(0.4, cellH / finalH); // 枠からのはみ出しは絶対に許さない
+    if(finalH && finalH * scale > availH){
+      scale = Math.max(0.4, availH / finalH); // 枠からのはみ出しは絶対に許さない
     }
     inner.style.transform = `scale(${scale.toFixed(3)})`;
   });
