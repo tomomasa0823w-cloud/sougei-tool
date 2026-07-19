@@ -893,6 +893,15 @@
     align-items:center;
     justify-content:center;
   }
+  .stop-eta-input{
+    width: 46px; box-sizing: border-box;
+    font: inherit; font-weight: 700; color: inherit;
+    background: transparent; border: 1px dashed transparent; border-radius: 6px;
+    padding: 0 2px; text-align: left;
+  }
+  .stop-eta-input:hover{ border-color: var(--line); background: #fff; }
+  .stop-eta-input:focus{ border-color: var(--moss); background: #fff; outline: none; }
+  .stop-eta-input.manual{ color: var(--clay); font-weight: 800; }
   .leg-stops .stop-eta{
     font-size: 13px;
     font-weight: 700;
@@ -1208,6 +1217,12 @@
     font-family:"Zen Maru Gothic",sans-serif;
   }
   #printSheet .stop-guide-time{ font-size:7.5px; font-weight:400; color:#5a6b64; line-height:1; }
+  #printSheet .stop-eta-input{
+    width: 34px;
+    border: none; background: transparent; outline: none; padding: 0;
+    font-family: "Zen Maru Gothic", sans-serif;
+    font-size: 9px; font-weight: 700; color: #2C5347;
+  }
   #printSheet .stop-addr{ font-size:8.5px; color:#5a6b64; }
   #printSheet .stop-tag, #printSheet .stop-svc, #printSheet .stop-trial,
   #printSheet .stop-extra, #printSheet .stop-pref, #printSheet .stop-alert,
@@ -3473,7 +3488,7 @@ function legHtml(legId, title, time, stops, routeUrl, alertHtml, departEditHtml)
     return `
     <li class="${guideAlert !== null && guideAlert > 10 ? 'stop-alert-row' : ''}">
       <span class="stop-num">${i+1}</span>
-      ${s.etaMin !== undefined ? `<span class="stop-eta">${minToTime(s.etaMin)}${s.guideTargetMin !== undefined ? `<span class="stop-guide-time">案内${minToTime(s.guideTargetMin)}</span>` : ''}</span>` : ''}
+      ${s.etaMin !== undefined ? `<span class="stop-eta"><input type="text" class="stop-eta-input${s._etaManual !== undefined ? ' manual' : ''}" data-leg-id="${legId}" data-pos="${i}" value="${minToTime(s.etaMin)}" title="到着時刻を直接入力できます(空にすると自動計算に戻る)">${s.guideTargetMin !== undefined ? `<span class="stop-guide-time">案内${minToTime(s.guideTargetMin)}</span>` : ''}</span>` : ''}
       <span class="stop-tag ${s.kind === 'drop' ? 'drop' : 'pick'}">${s.kind === 'drop' ? '送り' : '迎え'}</span>
       ${s.client.kind ? `<span class="stop-svc ${s.client.kind === '介護' ? 'svc-kaigo' : 'svc-sogo'}">${escapeHtml(s.client.kind)}</span>` : ''}
       ${isTrialStatus(s.client.status) ? '<span class="stop-trial">🔰体験</span>' : ''}
@@ -3799,6 +3814,18 @@ function renderLegHtmlFor(legId){
   const entry = legRegistry[legId];
   const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime);
   const withEta = attachEta(entry.stops, currentOrigin, timing.departMin);
+  // 手動で打ち込まれた到着時刻を反映する。
+  // 上書きした行以降は同じ差分だけ平行シフト(現場の実感時刻に合わせられる)
+  let etaShift = 0;
+  withEta.forEach(s => {
+    if(s.etaMin === undefined) return;
+    if(s._etaManual !== undefined){
+      etaShift = s._etaManual - s.etaMin;
+      s.etaMin = s._etaManual;
+    } else {
+      s.etaMin += etaShift;
+    }
+  });
   const routeUrl = phaseRouteUrl(entry.stops, entry.mode);
   const longTrip = timing.min > 90;
   // 出発時刻の編集コントロール(手動変更後は「↺自動」で元の自動計算に戻せる)
@@ -3905,6 +3932,32 @@ routeResultArea.addEventListener('click', (e) => {
 });
 
 routeResultArea.addEventListener('change', (e) => {
+  // 到着時刻の直接入力
+  const etaIn = e.target.closest('.stop-eta-input');
+  if(etaIn){
+    const legId = etaIn.dataset.legId;
+    const entry = legRegistry[legId];
+    const pos = parseInt(etaIn.dataset.pos, 10);
+    if(entry && entry.stops[pos]){
+      const v = etaIn.value.trim();
+      if(!v){
+        delete entry.stops[pos]._etaManual; // 空にすると自動計算に戻す
+      } else {
+        const mt = v.match(/^([0-9０-９]{1,2})[:：]?([0-9０-９]{2})$/);
+        if(!mt){
+          alert('時刻は「8:26」「826」の形式で入力してください');
+          const el0 = document.getElementById(legId);
+          if(el0) el0.outerHTML = renderLegHtmlFor(legId);
+          return;
+        }
+        const z2h = s => s.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+        entry.stops[pos]._etaManual = parseInt(z2h(mt[1]), 10) * 60 + parseInt(z2h(mt[2]), 10);
+      }
+      const el = document.getElementById(legId);
+      if(el) el.outerHTML = renderLegHtmlFor(legId);
+    }
+    return;
+  }
   const sel = e.target.closest('.transfer-select');
   if(sel && sel.value !== '') transferStop(sel.dataset.legId, parseInt(sel.dataset.pos, 10), parseInt(sel.value, 10));
 
