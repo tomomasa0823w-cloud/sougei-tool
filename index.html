@@ -1872,7 +1872,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.25</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.26</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -2116,6 +2116,18 @@
 
   <p class="footnote">住所データは読み込んだCSVに基づきます。住所が未登録の方は地図・ルート機能を利用できません。送迎ルートは住所からの推定位置に基づく目安です。実際の道路状況に応じて調整してください。</p>
 </div>
+
+  <div class="preview-overlay" id="previewOverlay">
+    <div class="preview-bar">
+      <span class="preview-bar-title">印刷イメージ(A4・実寸プレビュー)</span>
+      <span class="preview-bar-note" id="previewBarNote"></span>
+      <button class="preview-print" id="previewPrintBtn">この内容で印刷 / PDF保存</button>
+      <button class="preview-close" id="previewCloseBtn">✕ 閉じる</button>
+    </div>
+    <div class="preview-scroll" id="previewScroll">
+      <div class="preview-paper" id="previewPaper"></div>
+    </div>
+  </div>
 
 <script>
 let CLIENTS = [];
@@ -3500,16 +3512,16 @@ function closePrintPreview(){
   document.getElementById('previewOverlay').classList.remove('show');
   document.getElementById('previewPaper').innerHTML = '';
 }
-document.getElementById('previewBtn').addEventListener('click', openPrintPreview);
-document.getElementById('previewCloseBtn').addEventListener('click', closePrintPreview);
-document.getElementById('previewPrintBtn').addEventListener('click', () => {
-  closePrintPreview();
-  preparePrint();
-  window.print();
-});
-document.getElementById('previewOverlay').addEventListener('click', (e) => {
-  if(e.target.id === 'previewOverlay') closePrintPreview(); // 背景クリックで閉じる
-});
+(function(){
+  const pB = document.getElementById('previewBtn');
+  const pC = document.getElementById('previewCloseBtn');
+  const pP = document.getElementById('previewPrintBtn');
+  const pO = document.getElementById('previewOverlay');
+  if(pB) pB.addEventListener('click', openPrintPreview);
+  if(pC) pC.addEventListener('click', closePrintPreview);
+  if(pP) pP.addEventListener('click', () => { closePrintPreview(); preparePrint(); window.print(); });
+  if(pO) pO.addEventListener('click', (e) => { if(e.target.id === 'previewOverlay') closePrintPreview(); });
+})();
 document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape') closePrintPreview();
 });
@@ -5310,16 +5322,5 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-  <div class="preview-overlay" id="previewOverlay">
-    <div class="preview-bar">
-      <span class="preview-bar-title">印刷イメージ(A4・実寸プレビュー)</span>
-      <span class="preview-bar-note" id="previewBarNote"></span>
-      <button class="preview-print" id="previewPrintBtn">この内容で印刷 / PDF保存</button>
-      <button class="preview-close" id="previewCloseBtn">✕ 閉じる</button>
-    </div>
-    <div class="preview-scroll" id="previewScroll">
-      <div class="preview-paper" id="previewPaper"></div>
-    </div>
-  </div>
 </body>
 </html>
