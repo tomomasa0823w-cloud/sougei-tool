@@ -1290,6 +1290,7 @@
     display:flex; gap:22px; flex-wrap:wrap;
   }
   #printSheet.psl .psl-count-seg b{ color:#2C5347; margin-right:2px; }
+  #printSheet.psl .psl-count-total{ margin-left:auto; font-size:12px; font-weight:900; color:#111; }
   #printSheet.psl .psl-foot{ margin-top:2px; }
   #printSheet.psl .psl-foot-row{
     display:flex; align-items:stretch; border:1px solid #666; border-top:none;
@@ -1324,7 +1325,11 @@
     position:absolute; right:2px; bottom:1px;
     font-size:6.5px; color:#999; font-weight:400;
   }
-  #printSheet.psl .psl-tag{ width:16px; font-weight:900; background:#F3F3F0; }
+  #printSheet.psl .psl-tag{
+    width:20px; font-weight:900; background:#F3F3F0;
+    writing-mode:vertical-rl; text-orientation:upright;
+    letter-spacing:1px; padding:2px 0; white-space:nowrap;
+  }
   #printSheet.psl .psl-dep{ font-weight:700; }
   #printSheet.psl .psl-guide{ color:#666; font-size:8px; }
   #printSheet.psl .psl-eta{ font-weight:700; }
@@ -1872,7 +1877,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.26</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.30</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -3287,10 +3292,10 @@ function legacyDistrict(addr){
 function buildPrintSheetLegacy(){
   removePrintSheet();
   const phases = [
-    { key: 'amPickup', tag: '迎', rows4: true },
-    { key: 'amDrop',   tag: '送', rows4: false },
-    { key: 'pmPickup', tag: '迎', rows4: true },
-    { key: 'pmDrop',   tag: '送', rows4: false },
+    { key: 'amPickup', tag: '朝迎', rows4: true },
+    { key: 'amDrop',   tag: '昼①送', rows4: false },
+    { key: 'pmPickup', tag: '昼②迎', rows4: true },
+    { key: 'pmDrop',   tag: '夕送', rows4: false },
   ];
   const nVehicles = (() => { let n = 0; while(legRegistry[`leg-amPickup-${n}`] || legRegistry[`leg-amDrop-${n}`] || legRegistry[`leg-pmPickup-${n}`] || legRegistry[`leg-pmDrop-${n}`]) n++; return n; })();
   if(!nVehicles){ return; }
@@ -3416,7 +3421,10 @@ function buildPrintSheetLegacy(){
   const am = tally(['amPickup', 'amDrop']);
   const pm = tally(['pmPickup', 'pmDrop']);
   const seg = t => `介護 ${t.k}名（${t.k + t.y}名）　総合 ${t.s}名`;
-  out += `<div class="psl-count"><span class="psl-count-seg"><b>午前</b>　${escapeHtml(seg(am))}</span><span class="psl-count-seg"><b>午後</b>　${escapeHtml(seg(pm))}</span></div>`;
+  const amTotal = am.k + am.y + am.s;  // 午前の実人数
+  const pmTotal = pm.k + pm.y + pm.s;  // 午後の実人数
+  const grandTotal = amTotal + pmTotal; // 延べ総利用者数
+  out += `<div class="psl-count"><span class="psl-count-seg"><b>午前</b>　${escapeHtml(seg(am))}</span><span class="psl-count-seg"><b>午後</b>　${escapeHtml(seg(pm))}</span><span class="psl-count-total">合計 ${grandTotal}名</span></div>`;
   out += `<div class="psl-foot">
     <div class="psl-foot-row"><span class="psl-foot-label">欠席</span><span class="psl-foot-body">${escapeHtml(boxText('.absent-result-box') || 'なし')}</span></div>
     <div class="psl-foot-row"><span class="psl-foot-label">振替</span><span class="psl-foot-body">${escapeHtml(extraNames)}</span></div>
@@ -3693,10 +3701,10 @@ async function exportLegacyXlsx(){
   }
 
   const phases = [
-    { key: 'amPickup', tag: '迎', rows4: true },
-    { key: 'amDrop',   tag: '送', rows4: false },
-    { key: 'pmPickup', tag: '迎', rows4: true },
-    { key: 'pmDrop',   tag: '送', rows4: false },
+    { key: 'amPickup', tag: '朝迎', rows4: true },
+    { key: 'amDrop',   tag: '昼①送', rows4: false },
+    { key: 'pmPickup', tag: '昼②迎', rows4: true },
+    { key: 'pmDrop',   tag: '夕送', rows4: false },
   ];
   for(let v = 0; v < nVehicles; v++){
     const carNo = vehicleCarMap[`amPickup-${v}`] || vehicleCarMap[`amDrop-${v}`] || `${v + 1}号車`;
@@ -3787,7 +3795,8 @@ async function exportLegacyXlsx(){
   const pm = tally(['pmPickup', 'pmDrop']);
   const seg = t => `介護 ${t.k}名（${t.k + t.y}名）　総合 ${t.s}名`;
   {
-    const r = [cell(`午前　${seg(am)}　　午後　${seg(pm)}`, st({ fill: { fgColor: { rgb: 'F3F3F0' } }, font: { bold: true, sz: 11 }, alignment: { horizontal: 'left', vertical: 'center' } }))];
+    const grandTotal = (am.k + am.y + am.s) + (pm.k + pm.y + pm.s);
+    const r = [cell(`午前　${seg(am)}　　午後　${seg(pm)}　　合計 ${grandTotal}名`, st({ fill: { fgColor: { rgb: 'F3F3F0' } }, font: { bold: true, sz: 11 }, alignment: { horizontal: 'left', vertical: 'center' } }))];
     for(let i = 1; i < COLS; i++) r.push(cell('', st({ fill: { fgColor: { rgb: 'F3F3F0' } } })));
     const ri = push(r);
     M(ri, 0, ri, COLS - 1);
@@ -3805,9 +3814,9 @@ async function exportLegacyXlsx(){
   rows.forEach((r, ri) => r.forEach((c, ci) => { ws[XLSX.utils.encode_cell({ r: ri, c: ci })] = c; }));
   ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: COLS - 1 } });
   ws['!merges'] = merges;
-  const cols = [{ wch: 4 }, { wch: 8 }];
+  const cols = [{ wch: 9 }, { wch: 8 }];  // A列:車両No「む20-37」/欠席・振替・自家用車ラベルが収まる幅
   for(let i = 0; i < maxStops; i++) cols.push({ wch: 9 });
-  cols.push({ wch: 9 }, { wch: 8 });
+  cols.push({ wch: 10 }, { wch: 9 });    // 運転手 / アルコール
   ws['!cols'] = cols;
 
   const wb = XLSX.utils.book_new();
@@ -5041,11 +5050,44 @@ async function buildRoutes(){
     return groups;
   }
 
+  const MAX_PER_VEHICLE = 7; // 送迎車1台の定員(運転手を除く乗車人数の上限)
+
+  // どの号車も定員(7人)を超えないように調整する。
+  // 空きのある号車へ近い順に移し、それでも収まらなければ号車を増やす。
+  function enforceCapacity(groups, kindTag){
+    let gs = groups.map(g => g.slice());
+    const totalPeople = gs.reduce((s, g) => s + g.length, 0);
+    const minNeeded = Math.ceil(totalPeople / MAX_PER_VEHICLE);
+    // 台数が足りなければ空の号車を足す
+    while(gs.length < minNeeded) gs.push([]);
+    // 定員超過の号車から、あふれた分を最も空いている号車へ移す
+    let guard = 0;
+    for(;;){
+      const over = gs.findIndex(g => g.length > MAX_PER_VEHICLE);
+      if(over === -1) break;
+      if(++guard > 1000) break; // 無限ループ保険
+      // 移動先:定員に空きがあり、最も台数の少ない号車
+      let target = -1, min = Infinity;
+      gs.forEach((g, i) => {
+        if(i !== over && g.length < MAX_PER_VEHICLE && g.length < min){ min = g.length; target = i; }
+      });
+      if(target === -1){ gs.push([]); continue; } // 全部埋まっていれば増車
+      // over号車の中で、target号車の重心にいちばん近い人を移す(地理的な自然さを保つ)
+      const t = gs[target];
+      const ref = t.length ? { lat: t.reduce((s,p)=>s+p.lat,0)/t.length, lng: t.reduce((s,p)=>s+p.lng,0)/t.length } : origin;
+      let bi = 0, bd = Infinity;
+      gs[over].forEach((p, i) => { const d = geoDist(p, ref); if(d < bd){ bd = d; bi = i; } });
+      const moved = gs[over].splice(bi, 1)[0];
+      insertAtBestPosition(t, moved, kindTag);
+    }
+    return gs;
+  }
+
   function buildOrderedGroups(points, count, prevPhaseAssignment, kindTag){
     const ngPairs = buildNgPairs(points);
     const mustPairs = buildMustPairs(points);
-    // 最終的にどの経路でも「同乗必須ペアを同じ号車にまとめる」を最後に適用する
-    const finish = (gs) => resolveMustPairs(gs, mustPairs, ngPairs, kindTag);
+    // 最終的にどの経路でも「同乗必須ペアを同じ号車にまとめる」→「定員7人を超えない」を適用する
+    const finish = (gs) => enforceCapacity(resolveMustPairs(gs, mustPairs, ngPairs, kindTag), kindTag);
 
     // 前回ルートが読み込まれている場合は、まず「前回と同じ人の構成」を再現する
     if(prevPhaseAssignment){

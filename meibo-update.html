@@ -46,7 +46,7 @@
 <body>
 <header>
   <h1>送迎表用データ更新アプリ</h1>
-  <p>前月の送迎表用CSV ＋ リハプラン最新CSV → 住所・送迎時間を引き継いだ今月の送迎表用データを作成　<span style="opacity:.7">ver 1.1（2026/07/09）同乗必須・追加利用に対応</span></p>
+  <p>前月の送迎表用CSV ＋ リハプラン最新CSV → 住所・送迎時間を引き継いだ今月の送迎表用データを作成　<span style="opacity:.7">ver 1.2（2026/07/21）出力を氏名カナ順に並べ替え</span></p>
 </header>
 <main>
   <div class="card">
@@ -259,6 +259,9 @@ function run() {
     out.push({ row: ['', name, c[ix['氏名（カナ）']], c[ix['同姓同名識別用文字']], st, c[ix['住所']],
                      c[ix['利用パターン_種別']], c[ix['利用パターン_曜日']], c[ix['利用パターン_時間帯']], '', '', '', ''], flag: 'new' });
   }
+  // 氏名（カナ）順に並べ替え。カナが無い場合は氏名で代用
+  const sortKey = o => (norm(o.row[2]) || norm(o.row[1]) || '');
+  out.sort((a, b) => sortKey(a).localeCompare(sortKey(b), 'ja'));
   resultRows = out;
   render(out);
 }
