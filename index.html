@@ -2301,6 +2301,13 @@ const extraSelectedListEl = document.getElementById('extraSelectedList');
 const prevRouteFileInput = document.getElementById('prevRouteFile');
 const prevRouteStatusEl = document.getElementById('prevRouteStatus');
 const saveRouteBtn = document.getElementById('saveRouteBtn');
+// 出力系ボタン(保存・CSV・Excel)の表示をまとめて切り替える
+function toggleExportButtons(show){
+  ['saveRouteBtn', 'exportCsvBtn', 'exportXlsxBtn'].forEach(id => {
+    const b = document.getElementById(id);
+    if(b) b.classList.toggle('show', show);
+  });
+}
 
 // CSV読み込み後に参照される変数を事前宣言
 let currentDayClients = [];
@@ -2323,7 +2330,8 @@ function onDataLoaded(){
   const _printBtn = document.getElementById('printBtn');
   if(_printBtn) _printBtn.classList.remove('show');
   const _saveRouteBtn = document.getElementById('saveRouteBtn');
-  if(_saveRouteBtn) _saveRouteBtn.classList.remove('show');
+  if(_saveRouteBtn) _toggleExportButtons(false);
+  toggleExportButtons(false);
   const _printHeader = document.getElementById('printHeader');
   if(_printHeader) _printHeader.innerHTML = '';
   currentDayClients = [];
@@ -3669,7 +3677,7 @@ dayPicker.querySelectorAll('button').forEach(btn => {
     routeSummary.textContent = '';
     routeResultArea.innerHTML = '';
     printBtn.classList.remove('show');
-    saveRouteBtn.classList.remove('show');
+    toggleExportButtons(false);
     printHeader.innerHTML = '';
 
     currentDayClients = CLIENTS
@@ -4498,7 +4506,7 @@ async function buildRoutes(){
   routeSummary.textContent = '';
   routeResultArea.innerHTML = '';
   printBtn.classList.remove('show');
-  saveRouteBtn.classList.remove('show');
+  toggleExportButtons(false);
   printHeader.innerHTML = '';
 
   const extraClients = extraEntries.map(e => ({ ...CLIENTS[e.idx], _idx: e.idx, time: e.time, _isExtra: true }));
@@ -5081,7 +5089,7 @@ async function buildRoutes(){
   const today = new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric' });
   printHeader.innerHTML = `<h2>送迎ルート一覧（${selectedDay}曜日）</h2><div class="meta">寿リハ ${CURRENT_SHOP_NAME}　出発地：${escapeHtml(GAKU_ORIGIN)}　作成日：${today}　欠席：${absentClients.length}名　自家用車：${carClients.length}名　体験：${trialClients.length}名　振替：${extraClients.length}名</div>`;
   printBtn.classList.add('show');
-  saveRouteBtn.classList.add('show');
+  toggleExportButtons(true);
 }
 buildBtn.addEventListener('click', buildRoutes);
 </script>
