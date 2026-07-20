@@ -1730,6 +1730,25 @@
     }
   }
   /* ---- Upload (local data) ---- */
+  .prev-route-box{
+    display:flex; align-items:center; gap:10px;
+    background: var(--paper);
+    border: 1.5px dashed var(--moss);
+    border-radius: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .prev-route-box:hover{ background: var(--moss-pale, #E4EDE8); }
+  .prev-route-box.dragover{
+    background: var(--sand);
+    border: 2.5px dashed var(--moss-deep);
+    box-shadow: 0 0 0 4px rgba(63,110,94,.15);
+  }
+  .prev-route-box-icon{ font-size: 20px; }
+  .prev-route-box-text{ font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+  .prev-route-box-text b{ color: var(--moss-deep); font-size: 12.5px; }
+  @media print{ .prev-route-box{ display:none !important; } }
   .upload-box{
     background: var(--paper);
     border: 1.5px dashed var(--moss);
@@ -1976,7 +1995,11 @@
 
       <div class="prev-route-config">
         <div class="absent-label">前回のルート(任意・並びをできるだけ保つために使います)</div>
-        <input type="file" id="prevRouteFile" accept=".json" />
+        <div class="prev-route-box" id="prevRouteBox">
+          <span class="prev-route-box-icon">📂</span>
+          <span class="prev-route-box-text"><b>前回保存したルート(JSON)をここにドロップ</b><br>またはクリックしてファイルを選択</span>
+        </div>
+        <input type="file" id="prevRouteFile" accept=".json,application/json" style="display:none;" />
         <div class="prev-route-status" id="prevRouteStatus"></div>
       </div>
 
@@ -3963,9 +3986,13 @@ function legHtml(legId, title, time, stops, routeUrl, alertHtml, departEditHtml)
 
 // ---- 前回のルート(JSON)の読み込み・保存 ----
 
-prevRouteFileInput.addEventListener('change', async (e) => {
-  const file = e.target.files[0];
+async function loadPrevRouteFile(file){
   if(!file) return;
+  if(!/\.json$/i.test(file.name)){
+    prevRouteStatusEl.className = 'prev-route-status err';
+    prevRouteStatusEl.textContent = '⚠ JSONファイルをドロップしてください(「今回のルートを保存」で保存したファイル)';
+    return;
+  }
   try{
     const text = await file.text();
     const data = JSON.parse(text);
@@ -3998,7 +4025,36 @@ prevRouteFileInput.addEventListener('change', async (e) => {
     prevRouteStatusEl.className = 'prev-route-status err';
     prevRouteStatusEl.textContent = '⚠ 読み込みに失敗しました。このツールで保存したファイルかご確認ください。';
   }
-});
+}
+prevRouteFileInput.addEventListener('change', (e) => loadPrevRouteFile(e.target.files[0]));
+
+// 前回ルートのドロップゾーン(CSVと同じ操作感)
+(function(){
+  const box = document.getElementById('prevRouteBox');
+  if(!box) return;
+  box.addEventListener('click', () => prevRouteFileInput.click());
+  let dragDepth = 0;
+  box.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragDepth++;
+    box.classList.add('dragover');
+  });
+  box.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  box.addEventListener('dragleave', () => {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if(dragDepth === 0) box.classList.remove('dragover');
+  });
+  box.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    box.classList.remove('dragover');
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    loadPrevRouteFile(file);
+  });
+})();
 
 function exportCurrentRoute(){
   if(!selectedDay) return;
