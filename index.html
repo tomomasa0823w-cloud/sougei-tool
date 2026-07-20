@@ -1400,6 +1400,57 @@
     vertical-align: middle;
   }
   #printBtn.show + .print-style-select{ display:inline-block; }
+  .preview-btn{
+    margin-top: 6px; width: 100%;
+    border: 1.5px solid var(--moss); background: var(--moss-pale, #E4EDE8); color: var(--moss-deep);
+    font-family: inherit; font-weight: 700; font-size: 13px;
+    padding: 9px 0; border-radius: 10px; cursor: pointer;
+    display: none; align-items: center; justify-content: center; gap: 6px;
+  }
+  .preview-btn.show{ display: flex; }
+  .preview-btn:hover{ background: var(--moss); color: #fff; }
+  /* 印刷イメージ確認オーバーレイ */
+  .preview-overlay{
+    display: none; position: fixed; inset: 0; z-index: 3000;
+    background: rgba(34,49,44,0.55); backdrop-filter: blur(2px);
+    flex-direction: column;
+  }
+  .preview-overlay.show{ display: flex; }
+  .preview-bar{
+    flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+    background: var(--moss-deep); color: #fff; padding: 10px 16px;
+    font-family: "Zen Maru Gothic", sans-serif;
+  }
+  .preview-bar-title{ font-weight: 700; font-size: 14px; }
+  .preview-bar-note{ font-size: 12px; opacity: .8; }
+  .preview-print{
+    margin-left: auto; border: none; background: #fff; color: var(--moss-deep);
+    font-weight: 700; font-size: 13px; padding: 7px 16px; border-radius: 8px; cursor: pointer;
+    font-family: inherit;
+  }
+  .preview-print:hover{ background: var(--sand); }
+  .preview-close{
+    border: 1px solid rgba(255,255,255,.5); background: transparent; color: #fff;
+    font-weight: 700; font-size: 13px; padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    font-family: inherit;
+  }
+  .preview-close:hover{ background: rgba(255,255,255,.15); }
+  .preview-scroll{
+    flex: 1; overflow: auto; padding: 24px;
+    display: flex; justify-content: center; align-items: flex-start;
+  }
+  .preview-paper{
+    width: 210mm; min-height: 297mm; background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,.3);
+    padding: 5mm 6mm; box-sizing: border-box;
+    transform-origin: top center;
+  }
+  .preview-vpage{
+    width: 198mm; height: 285mm; background: #fff; margin: 0 auto 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.3); padding: 6mm; box-sizing: border-box; overflow: hidden;
+  }
+  .preview-vpage .psv-page{ width: 100%; height: 100%; }
+  @media print{ .preview-overlay{ display: none !important; } }
   .print-btn{
     margin-top: 10px;
     width: 100%;
@@ -1821,7 +1872,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.23</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.25</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -2035,6 +2086,10 @@
       <button class="print-btn" id="printBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-2M6 14h12v8H6z"/></svg>
         この一覧をA4で印刷 / PDF保存
+      </button>
+      <button class="preview-btn" id="previewBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        印刷イメージを確認
       </button>
       <select id="printStyleSelect" class="print-style-select" title="印刷スタイルを選択">
         <option value="legacy" selected>印刷:1枚印刷用</option>
@@ -2311,7 +2366,7 @@ const prevRouteStatusEl = document.getElementById('prevRouteStatus');
 const saveRouteBtn = document.getElementById('saveRouteBtn');
 // 出力系ボタン(保存・CSV・Excel)の表示をまとめて切り替える
 function toggleExportButtons(show){
-  ['saveRouteBtn', 'exportCsvBtn', 'exportXlsxBtn'].forEach(id => {
+  ['saveRouteBtn', 'exportCsvBtn', 'exportXlsxBtn', 'previewBtn'].forEach(id => {
     const b = document.getElementById(id);
     if(b) b.classList.toggle('show', show);
   });
@@ -3400,6 +3455,64 @@ window.addEventListener('afterprint', () => {
   document.body.classList.remove('print-by-vehicle');
 });
 printBtn.addEventListener('click', () => { preparePrint(); window.print(); });
+
+// ── 印刷イメージ確認(画面はそのまま・別オーバーレイに紙の見た目を表示)──
+function openPrintPreview(){
+  const sections = routeResultArea.querySelectorAll('.phase-section');
+  if(!sections.length){ alert('先にルートを作成してください'); return; }
+  // 印刷と同じエンジンでシートを生成(#printSheetが画面外に作られる)
+  preparePrint();
+  const built = document.getElementById('printSheet');
+  const paper = document.getElementById('previewPaper');
+  const note = document.getElementById('previewBarNote');
+  const styleVal = printStyleSelect ? printStyleSelect.value : 'legacy';
+
+  paper.innerHTML = '';
+  if(styleVal === 'vehicle'){
+    // 号車ごと1枚:各ページを縮小して縦に並べて見せる
+    note.textContent = '号車ごと1枚(1台=1ページ)';
+    paper.style.padding = '0';
+    paper.style.background = 'transparent';
+    paper.style.boxShadow = 'none';
+    [...built.querySelectorAll('.psv-page')].forEach(pg => {
+      const wrap = document.createElement('div');
+      wrap.className = 'preview-vpage';
+      wrap.appendChild(pg.cloneNode(true));
+      paper.appendChild(wrap);
+    });
+  } else {
+    note.textContent = (styleVal === 'compact') ? '全体まとめ(1枚)' : '1枚印刷用';
+    paper.style.padding = '5mm 6mm';
+    paper.style.background = '#fff';
+    paper.style.boxShadow = '0 4px 24px rgba(0,0,0,.3)';
+    // #printSheetの中身(transform適用済み)をそのまま複製
+    const clone = built.cloneNode(true);
+    clone.removeAttribute('id'); // idが重複すると後片付けで複製が消えるため外す
+    clone.style.position = 'static';
+    clone.style.left = 'auto';
+    paper.appendChild(clone);
+  }
+  // 生成物は画面には出さないので片付け(プレビューは複製で表示済み)
+  removePrintSheet();
+  document.getElementById('previewOverlay').classList.add('show');
+}
+function closePrintPreview(){
+  document.getElementById('previewOverlay').classList.remove('show');
+  document.getElementById('previewPaper').innerHTML = '';
+}
+document.getElementById('previewBtn').addEventListener('click', openPrintPreview);
+document.getElementById('previewCloseBtn').addEventListener('click', closePrintPreview);
+document.getElementById('previewPrintBtn').addEventListener('click', () => {
+  closePrintPreview();
+  preparePrint();
+  window.print();
+});
+document.getElementById('previewOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'previewOverlay') closePrintPreview(); // 背景クリックで閉じる
+});
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape') closePrintPreview();
+});
 
 // ── ルート結果のCSV一括出力 ──
 // 画面に表示中の内容(手動調整後の最終状態)をそのまま行データ化する
@@ -4538,12 +4651,28 @@ routeResultArea.addEventListener('change', (e) => {
   const dsel = e.target.closest('.vehicle-driver-select');
   if(dsel){
     const key = dsel.dataset.vehicleKey;
-    // 区間(①②③④)ごとに別の担当者を選べるよう、他区間へは同期しない
     vehicleDriverMap[key] = dsel.value;
     const card = dsel.closest('.vehicle-card');
     if(card){
       const nameEl = card.querySelector('.driver-print-name');
       if(nameEl) nameEl.textContent = dsel.value || '　　　　';
+    }
+    // 同じ号車の「まだ空欄の区間」だけに自動で埋める(既に入っている区間は変えない)。
+    // これで朝に入れれば空の昼夕へ伝播するが、後から昼を別の人にしてもそれは保持される。
+    if(dsel.value){
+      const vNum = key.split('-').pop();
+      ['amPickup','amDrop','pmPickup','pmDrop'].forEach(phase => {
+        const k = `${phase}-${vNum}`;
+        if(k === key) return;
+        if(!vehicleDriverMap[k]){ // 空欄のときだけ
+          vehicleDriverMap[k] = dsel.value;
+          document.querySelectorAll(`.vehicle-driver-select[data-vehicle-key="${k}"]`).forEach(sel => {
+            sel.value = dsel.value;
+            const c = sel.closest('.vehicle-card');
+            if(c){ const n = c.querySelector('.driver-print-name'); if(n) n.textContent = dsel.value; }
+          });
+        }
+      });
     }
   }
 
@@ -5181,5 +5310,16 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+  <div class="preview-overlay" id="previewOverlay">
+    <div class="preview-bar">
+      <span class="preview-bar-title">印刷イメージ(A4・実寸プレビュー)</span>
+      <span class="preview-bar-note" id="previewBarNote"></span>
+      <button class="preview-print" id="previewPrintBtn">この内容で印刷 / PDF保存</button>
+      <button class="preview-close" id="previewCloseBtn">✕ 閉じる</button>
+    </div>
+    <div class="preview-scroll" id="previewScroll">
+      <div class="preview-paper" id="previewPaper"></div>
+    </div>
+  </div>
 </body>
 </html>
