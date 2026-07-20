@@ -1814,7 +1814,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.19</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.20</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -3514,18 +3514,23 @@ async function exportLegacyXlsx(){
     r[0] = cell('送迎予定表　兼　送迎実施記録', S.title);
     r[4] = cell('　　月　　日', S.date);
     r[5] = cell(dayLabel, S.day);
-    const lg = [['kaigo','介護'],['sogo','総合'],['yobo','予防(予)'],['taiken','体験'],['furikae','振替']];
-    lg.forEach(([k, label], i) => {
-      const c = COLS - 8 + i * 2;
-      if(c > 5){
-        r[c] = cell('', S.legend(k));
-        r[c + 1] = cell(label, S.legendTx);
-      }
-    });
     const ri = push(r);
     M(ri, 0, ri, 3);
   }
-  push(new Array(COLS).fill(null).map(() => cell('')));
+  // 凡例は専用の2行目に「色マス＋ラベル」を左から順に並べる
+  {
+    const lg = [['kaigo','介護'],['sogo','総合'],['yobo','予防(予)'],['taiken','体験'],['furikae','振替']];
+    const r = new Array(COLS).fill(null).map(() => cell(''));
+    let c = 0;
+    lg.forEach(([k, label]) => {
+      if(c + 1 < COLS){
+        r[c] = cell('', S.legend(k));
+        r[c + 1] = cell(label, S.legendTx);
+        c += 2;
+      }
+    });
+    push(r);
+  }
 
   const phases = [
     { key: 'amPickup', tag: '迎', rows4: true },
