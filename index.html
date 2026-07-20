@@ -1324,10 +1324,11 @@
   #printSheet.psl .psl-dist{ color:#444; font-size:8px; }
   #printSheet.psl .psl-name{ font-weight:700; font-size:9.5px; }
   /* 凡例色(元Excelに準拠:介護=黄・予防=紫・振替=緑・体験=水色) */
-  #printSheet.psl .c-kaigo{ background:#FFF176; }
-  #printSheet.psl .c-yobo{ background:#E1BEE7; }
+  #printSheet.psl .c-kaigo{ background:#FFF176; }  /* ①介護=黄 */
+  #printSheet.psl .c-sogo{ background:#E1BEE7; }   /* ②総合=紫 */
+  #printSheet.psl .c-yobo{ background:#C5E1A5; }   /* ③予防=緑 */
   #printSheet.psl .c-taiken{ background:#B3E5FC; }
-  #printSheet.psl .c-furikae{ background:#A8D878; }
+  #printSheet.psl .c-furikae{ background:#FFCC80; } /* 振替=橙(緑と区別) */
 
   /* ── 号車ごと1枚(超拡大)モード:1ページ=1号車の枠 ── */
   #printSheet .psv-page{
@@ -1813,7 +1814,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.17</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.19</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -2330,7 +2331,7 @@ function onDataLoaded(){
   const _printBtn = document.getElementById('printBtn');
   if(_printBtn) _printBtn.classList.remove('show');
   const _saveRouteBtn = document.getElementById('saveRouteBtn');
-  if(_saveRouteBtn) _toggleExportButtons(false);
+  if(_saveRouteBtn) _saveRouteBtn.classList.remove('show');
   toggleExportButtons(false);
   const _printHeader = document.getElementById('printHeader');
   if(_printHeader) _printHeader.innerHTML = '';
@@ -3235,11 +3236,13 @@ function buildPrintSheetLegacy(){
     if(surnameCount[sn] && surnameCount[sn].size > 1 && gn) return `${sn}（${gn[0]}）`;
     return sn;
   };
+  const isYobo = c => c.kind === '予防' || ((c.kind === '総合' || !c.kind) && /予/.test(c.dup || ''));
   const cellCls = c => {
     if(c._isExtra) return ' c-furikae';
     if(isTrialStatus(c.status)) return ' c-taiken';
     if(c.kind === '介護') return ' c-kaigo';
-    if(c.kind === '総合' || c.kind === '予防') return ' c-yobo';
+    if(isYobo(c)) return ' c-yobo';       // ③予防(識別文字に「予」)
+    if(c.kind === '総合') return ' c-sogo'; // ②総合
     return '';
   };
 
@@ -3256,7 +3259,7 @@ function buildPrintSheetLegacy(){
     <span class="psl-date">　　　月　　　日</span>
     <span class="psl-day">${escapeHtml(dayLabel)}</span>
     <span class="psl-legend">
-      <i class="c-kaigo"></i>介護　<i class="c-yobo"></i>予防(総合)　<i class="c-taiken"></i>体験　<i class="c-furikae"></i>振替
+      <i class="c-kaigo"></i>介護　<i class="c-sogo"></i>総合　<i class="c-yobo"></i>予防(予)　<i class="c-taiken"></i>体験　<i class="c-furikae"></i>振替
     </span>
   </div>`;
 
@@ -3460,11 +3463,13 @@ async function exportLegacyXlsx(){
     if(surnameCount[sn] && surnameCount[sn].size > 1 && gn) return `${sn}（${gn[0]}）`;
     return sn;
   };
+  const isYobo = c => c.kind === '予防' || ((c.kind === '総合' || !c.kind) && /予/.test(c.dup || ''));
   const clsOf = c => {
     if(c._isExtra) return 'furikae';
     if(isTrialStatus(c.status)) return 'taiken';
     if(c.kind === '介護') return 'kaigo';
-    if(c.kind === '総合' || c.kind === '予防') return 'yobo';
+    if(isYobo(c)) return 'yobo';       // ③予防
+    if(c.kind === '総合') return 'sogo'; // ②総合
     return '';
   };
   let maxStops = 7;
@@ -3472,7 +3477,7 @@ async function exportLegacyXlsx(){
   const COLS = 2 + maxStops + 2; // 迎送/出発 + 停留 + 運転手/アルコール
 
   // ---- スタイル定義 ----
-  const FILL = { kaigo: 'FFF176', yobo: 'E1BEE7', taiken: 'B3E5FC', furikae: 'A8D878' };
+  const FILL = { kaigo: 'FFF176', sogo: 'E1BEE7', yobo: 'C5E1A5', taiken: 'B3E5FC', furikae: 'FFCC80' };
   const thin = { style: 'thin', color: { rgb: '666666' } };
   const bAll = { top: thin, bottom: thin, left: thin, right: thin };
   const base = { border: bAll, alignment: { horizontal: 'center', vertical: 'center' }, font: { sz: 9, name: 'メイリオ' } };
@@ -3509,7 +3514,7 @@ async function exportLegacyXlsx(){
     r[0] = cell('送迎予定表　兼　送迎実施記録', S.title);
     r[4] = cell('　　月　　日', S.date);
     r[5] = cell(dayLabel, S.day);
-    const lg = [['kaigo','介護'],['yobo','予防(総合)'],['taiken','体験'],['furikae','振替']];
+    const lg = [['kaigo','介護'],['sogo','総合'],['yobo','予防(予)'],['taiken','体験'],['furikae','振替']];
     lg.forEach(([k, label], i) => {
       const c = COLS - 8 + i * 2;
       if(c > 5){
