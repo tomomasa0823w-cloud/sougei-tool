@@ -1275,6 +1275,60 @@
   #printSheet .kind-summary-table tr.kind-summary-sub td{ color: #111 !important; }
   #printSheet .psg-info b{ display:block; font-size: 9.5px; margin: 0 0 2px; }
 
+  /* ── 過去フォーマット(送迎予定表 兼 送迎実施記録)── */
+  #printSheet.psl{ font-family: "Noto Sans JP", sans-serif; color:#111; }
+  #printSheet.psl .psl-head{ display:flex; align-items:baseline; gap:14px; margin-bottom:4px; }
+  #printSheet.psl .psl-title{ font-size:14px; font-weight:700; }
+  #printSheet.psl .psl-day{ font-size:13px; font-weight:700; color:#2C5347; }
+  #printSheet.psl .psl-legend{ margin-left:auto; font-size:9px; display:flex; align-items:center; gap:3px; }
+  #printSheet.psl .psl-legend i{ display:inline-block; width:12px; height:9px; border:1px solid #999; }
+  #printSheet.psl .psl-date{ font-size:13px; font-weight:700; border-bottom:1px solid #333; padding:0 8px 1px; }
+  #printSheet.psl .psl-foot{ margin-top:2px; }
+  #printSheet.psl .psl-foot-row{
+    display:flex; align-items:stretch; border:1px solid #666; border-top:none;
+  }
+  #printSheet.psl .psl-foot-row:first-child{ border-top:1px solid #666; }
+  #printSheet.psl .psl-foot-label{
+    flex:0 0 60px; display:flex; align-items:center; justify-content:center;
+    font-size:9.5px; font-weight:700; background:#E8E8E8; border-right:1px solid #666;
+    padding:2px 0;
+  }
+  #printSheet.psl .psl-foot-body{
+    flex:1; padding:2px 6px; font-size:9.5px; display:flex; align-items:center;
+    white-space:normal;
+  }
+  #printSheet.psl .psl-table{
+    border-collapse: collapse; width:100%; table-layout: fixed;
+    margin-bottom: 6px;
+  }
+  #printSheet.psl td{
+    border: 1px solid #666;
+    font-size: 9px; line-height: 1.25;
+    padding: 1px 2px; text-align: center;
+    overflow: hidden; white-space: nowrap;
+  }
+  #printSheet.psl .psl-vhead td{ background:#E8E8E8; font-weight:700; }
+  #printSheet.psl .psl-vno{ font-size:11px; font-weight:900; width:48px; }
+  #printSheet.psl .psl-dephead{ width:44px; font-size:8px; }
+  #printSheet.psl .psl-drvhead, #printSheet.psl .psl-driver{ width:52px; }
+  #printSheet.psl .psl-alchead, #printSheet.psl .psl-alc{ width:44px; }
+  #printSheet.psl .psl-alc{ position:relative; }
+  #printSheet.psl .psl-alc-unit{
+    position:absolute; right:2px; bottom:1px;
+    font-size:6.5px; color:#999; font-weight:400;
+  }
+  #printSheet.psl .psl-tag{ width:16px; font-weight:900; background:#F3F3F0; }
+  #printSheet.psl .psl-dep{ font-weight:700; }
+  #printSheet.psl .psl-guide{ color:#666; font-size:8px; }
+  #printSheet.psl .psl-eta{ font-weight:700; }
+  #printSheet.psl .psl-dist{ color:#444; font-size:8px; }
+  #printSheet.psl .psl-name{ font-weight:700; font-size:9.5px; }
+  /* 凡例色(元Excelに準拠:介護=黄・予防=紫・振替=緑・体験=水色) */
+  #printSheet.psl .c-kaigo{ background:#FFF176; }
+  #printSheet.psl .c-yobo{ background:#E1BEE7; }
+  #printSheet.psl .c-taiken{ background:#B3E5FC; }
+  #printSheet.psl .c-furikae{ background:#A8D878; }
+
   /* ── 号車ごと1枚(超拡大)モード:1ページ=1号車の枠 ── */
   #printSheet .psv-page{
     width: 740px;
@@ -1952,12 +2006,17 @@
         この一覧をA4で印刷 / PDF保存
       </button>
       <select id="printStyleSelect" class="print-style-select" title="印刷スタイルを選択">
-        <option value="compact" selected>印刷:全体まとめ(1枚)</option>
+        <option value="legacy" selected>印刷:1枚印刷用</option>
+        <option value="compact">印刷:全体まとめ(1枚)</option>
         <option value="vehicle">印刷:号車ごと1枚(超拡大)</option>
       </select>
       <button class="save-route-btn" id="saveRouteBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
         今回のルートを保存(次回用)
+      </button>
+      <button class="save-route-btn" id="exportXlsxBtn" title="1枚印刷用と同じ形式のExcelを出力">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+        Excel出力(1枚用)
       </button>
       <button class="save-route-btn" id="exportCsvBtn" title="表示中のルートをCSVで一括出力">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
@@ -3091,11 +3150,178 @@ function buildPrintSheetByVehicle(){
   document.body.classList.add('print-compact');
 }
 
+// ── 過去フォーマット印刷:従来のExcel送迎表(送迎予定表 兼 送迎実施記録)を再現 ──
+// 1台=12行ブロック:朝迎[案内/到着/地区/苗字] 昼送[時刻/苗字] 昼迎[4行] 夕送[2行]
+function legacyEtas(entry){
+  // renderLegHtmlForと同じ時刻計算(手動上書き・平行シフト込み)
+  const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime);
+  const withEta = attachEta(entry.stops, currentOrigin, timing.departMin);
+  let etaShift = 0;
+  withEta.forEach(s => {
+    if(s.etaMin === undefined) return;
+    if(s._etaManual !== undefined){ etaShift = s._etaManual - s.etaMin; s.etaMin = s._etaManual; }
+    else { s.etaMin += etaShift; }
+  });
+  return { withEta, departMin: timing.departMin };
+}
+
+function legacyDistrict(addr){
+  let a = String(addr || '').replace(/^(石川県|富山県)/, '');
+  a = a.replace(/^(金沢市|白山市|野々市市|能美郡川北町|能美市|かほく市|富山市婦中町|富山市|中新川郡立山町)/, '');
+  // 数字(算用数字のみ)の手前まで。漢数字は町名に含まれる(三十苅・四十万など)ため切らない
+  const m = a.match(/^[^0-9０-９]+/);
+  let d = m ? m[0] : a;
+  d = d.replace(/[ぁ-んァ-ヶ・ー]+$/, ''); // 額谷ワ・藤蔵へ → 額谷・藤蔵
+  d = d.replace(/[北南東西上下]$/, '');    // 四十万町北 → 四十万町
+  d = d.replace(/町丁$/, '');              // 三十苅町丁 → 三十苅
+  d = d.replace(/町$/, '');                // 大額町 → 大額
+  return d || a.slice(0, 4);
+}
+
+function buildPrintSheetLegacy(){
+  removePrintSheet();
+  const phases = [
+    { key: 'amPickup', tag: '迎', rows4: true },
+    { key: 'amDrop',   tag: '送', rows4: false },
+    { key: 'pmPickup', tag: '迎', rows4: true },
+    { key: 'pmDrop',   tag: '送', rows4: false },
+  ];
+  const nVehicles = (() => { let n = 0; while(legRegistry[`leg-amPickup-${n}`] || legRegistry[`leg-amDrop-${n}`] || legRegistry[`leg-pmPickup-${n}`] || legRegistry[`leg-pmDrop-${n}`]) n++; return n; })();
+  if(!nVehicles){ return; }
+
+  // 同姓の区別:同じ苗字が複数いれば「苗字(名の頭文字)」にする
+  const surnameCount = {};
+  Object.keys(legRegistry).forEach(id => {
+    legRegistry[id].stops.forEach(s => {
+      const parts = String(s.client.name || '').trim().split(/[\s\u3000]+/);
+      const sn = parts[0] || '';
+      (surnameCount[sn] = surnameCount[sn] || new Set()).add(parts[1] || '');
+    });
+  });
+  const shortName = c => {
+    const parts = String(c.name || '').trim().split(/[\s\u3000]+/);
+    const sn = parts[0] || '', gn = parts[1] || '';
+    if(surnameCount[sn] && surnameCount[sn].size > 1 && gn) return `${sn}（${gn[0]}）`;
+    return sn;
+  };
+  const cellCls = c => {
+    if(c._isExtra) return ' c-furikae';
+    if(isTrialStatus(c.status)) return ' c-taiken';
+    if(c.kind === '介護') return ' c-kaigo';
+    if(c.kind === '総合' || c.kind === '予防') return ' c-yobo';
+    return '';
+  };
+
+  // 列数 = 全便の最大人数(最低7列でExcelの見た目に合わせる)
+  let maxStops = 7;
+  Object.keys(legRegistry).forEach(id => { maxStops = Math.max(maxStops, legRegistry[id].stops.length); });
+
+  const sheet = document.createElement('div');
+  sheet.id = 'printSheet';
+  sheet.classList.add('psl');
+  const dayLabel = (typeof selectedDay !== 'undefined' && selectedDay) ? `${selectedDay}曜日` : '';
+  let out = `<div class="psl-head">
+    <span class="psl-title">送迎予定表　兼　送迎実施記録</span>
+    <span class="psl-date">　　　月　　　日</span>
+    <span class="psl-day">${escapeHtml(dayLabel)}</span>
+    <span class="psl-legend">
+      <i class="c-kaigo"></i>介護　<i class="c-yobo"></i>予防(総合)　<i class="c-taiken"></i>体験　<i class="c-furikae"></i>振替
+    </span>
+  </div>`;
+
+  for(let v = 0; v < nVehicles; v++){
+    const carNo = vehicleCarMap[`amPickup-${v}`] || vehicleCarMap[`amDrop-${v}`] || '';
+    let head = `<tr class="psl-vhead"><td class="psl-vno">${escapeHtml(carNo || (v + 1) + '号車')}</td>`;
+    head += `<td class="psl-dephead">出発時間</td>`;
+    for(let i = 0; i < maxStops; i++) head += `<td>${i + 1}</td>`;
+    head += `<td class="psl-drvhead">運転手</td><td class="psl-alchead">アルコール</td></tr>`;
+    let body = '';
+    phases.forEach(ph => {
+      const entry = legRegistry[`leg-${ph.key}-${v}`];
+      if(!entry) return;
+      const { withEta, departMin } = legacyEtas(entry);
+      const rowN = ph.rows4 ? 4 : 2;
+      const driver = vehicleDriverMap[`${ph.key}-${v}`] || '';
+      const dep = withEta.length ? minToTime(departMin) : '';
+      const td = (content, cls) => `<td class="${cls || ''}">${content}</td>`;
+      const rowCells = (fn, cls) => {
+        let cells = '';
+        for(let i = 0; i < maxStops; i++){
+          const s = withEta[i];
+          cells += td(s ? fn(s) : '', cls ? cls(s) : '');
+        }
+        return cells;
+      };
+      // 1行目(案内 or 時刻)
+      body += `<tr class="psl-first"><td rowspan="${rowN}" class="psl-tag">${ph.tag}</td><td rowspan="${rowN}" class="psl-dep">${dep}</td>`;
+      if(ph.rows4){
+        body += rowCells(s => s.guideTargetMin !== undefined ? minToTime(s.guideTargetMin) : '', () => 'psl-guide');
+        body += `<td rowspan="${rowN}" class="psl-driver">${escapeHtml(driver)}</td><td rowspan="${rowN}" class="psl-alc"><span class="psl-alc-unit">mg/L</span></td></tr>`;
+        body += `<tr>${rowCells(s => s.etaMin !== undefined ? minToTime(s.etaMin) : '', () => 'psl-eta')}</tr>`;
+        body += `<tr>${rowCells(s => escapeHtml(legacyDistrict(s.client.addr)), () => 'psl-dist')}</tr>`;
+        body += `<tr>${rowCells(s => escapeHtml(shortName(s.client)), s => 'psl-name' + (s ? cellCls(s.client) : ''))}</tr>`;
+      } else {
+        body += rowCells(s => s.etaMin !== undefined ? minToTime(s.etaMin) : '', () => 'psl-eta');
+        body += `<td rowspan="${rowN}" class="psl-driver">${escapeHtml(driver)}</td><td rowspan="${rowN}" class="psl-alc"><span class="psl-alc-unit">mg/L</span></td></tr>`;
+        body += `<tr>${rowCells(s => escapeHtml(shortName(s.client)), s => 'psl-name' + (s ? cellCls(s.client) : ''))}</tr>`;
+      }
+    });
+    out += `<table class="psl-table">${head}${body}</table>`;
+  }
+  // 一番下:欠席・振替・自家用車の名簿
+  const boxText = sel => {
+    const src = routeResultArea.querySelector(sel);
+    if(!src) return '';
+    const c = src.cloneNode(true);
+    const b = c.querySelector('b');
+    if(b) b.remove();
+    return c.textContent.replace(/\s+/g, ' ').trim();
+  };
+  const extraNames = (typeof extraEntries !== 'undefined' && extraEntries.length)
+    ? extraEntries.map(e => {
+        const c = CLIENTS[e.idx];
+        return c ? `${c.name}（${e.time === 'AM' ? '午前' : '午後'}）` : '';
+      }).filter(Boolean).join('、')
+    : 'なし';
+  out += `<div class="psl-foot">
+    <div class="psl-foot-row"><span class="psl-foot-label">欠席</span><span class="psl-foot-body">${escapeHtml(boxText('.absent-result-box') || 'なし')}</span></div>
+    <div class="psl-foot-row"><span class="psl-foot-label">振替</span><span class="psl-foot-body">${escapeHtml(extraNames)}</span></div>
+    <div class="psl-foot-row"><span class="psl-foot-label">自家用車</span><span class="psl-foot-body">${escapeHtml(boxText('.car-result-box') || 'なし')}</span></div>
+  </div>`;
+
+  sheet.innerHTML = out;
+  document.body.appendChild(sheet);
+
+  // 全体を1枚に等比フィット(全体まとめと同じエンジン)
+  const BASE_W = 740, TARGET_H = 1040;
+  let scale = 1;
+  for(let iter = 0; iter < 5; iter++){
+    sheet.style.width = Math.round(BASE_W / scale) + 'px';
+    const H = sheet.offsetHeight;
+    if(!H) break;
+    const ideal = TARGET_H / H;
+    let next = Math.sqrt(scale * ideal);
+    next = Math.min(1.8, Math.max(0.55, next));
+    const converged = Math.abs(next - scale) < 0.02;
+    scale = next;
+    if(converged) break;
+  }
+  sheet.style.width = Math.round(BASE_W / scale) + 'px';
+  const finalH = sheet.offsetHeight;
+  if(finalH && finalH * scale > TARGET_H){
+    scale = Math.max(0.5, TARGET_H / finalH);
+  }
+  sheet.style.transform = `scale(${scale.toFixed(3)})`;
+  document.body.classList.add('print-compact');
+}
+
 function preparePrint(){
-  const byVehicle = printStyleSelect && printStyleSelect.value === 'vehicle';
+  const styleVal = printStyleSelect ? printStyleSelect.value : 'compact';
   document.body.classList.remove('print-by-vehicle');
-  if(byVehicle){
+  if(styleVal === 'vehicle'){
     buildPrintSheetByVehicle();
+  } else if(styleVal === 'legacy'){
+    buildPrintSheetLegacy();
   } else {
     buildPrintSheet();
   }
@@ -3164,6 +3390,202 @@ function exportRoutesCsv(){
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 document.getElementById('exportCsvBtn').addEventListener('click', exportRoutesCsv);
+
+// ── 1枚印刷用と同じ形式のExcel(.xlsx)出力 ──
+// 色付きセルに対応したライブラリ(xlsx-js-style)をボタン押下時にCDNから読み込む
+let _xlsxLibPromise = null;
+function loadXlsxLib(){
+  if(window.XLSX && window.XLSX.utils) return Promise.resolve();
+  if(_xlsxLibPromise) return _xlsxLibPromise;
+  _xlsxLibPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+    s.onload = () => resolve();
+    s.onerror = () => { _xlsxLibPromise = null; reject(new Error('load fail')); };
+    document.head.appendChild(s);
+  });
+  return _xlsxLibPromise;
+}
+
+async function exportLegacyXlsx(){
+  let nVehicles = 0;
+  while(legRegistry[`leg-amPickup-${nVehicles}`] || legRegistry[`leg-amDrop-${nVehicles}`] || legRegistry[`leg-pmPickup-${nVehicles}`] || legRegistry[`leg-pmDrop-${nVehicles}`]) nVehicles++;
+  if(!nVehicles){ alert('先にルートを作成してください'); return; }
+  try{ await loadXlsxLib(); }
+  catch(e){ alert('Excel出力用ライブラリの読み込みに失敗しました。ネット接続をご確認ください。'); return; }
+
+  // ---- 印刷(1枚印刷用)と同じデータ組み立て ----
+  const surnameCount = {};
+  Object.keys(legRegistry).forEach(id => {
+    legRegistry[id].stops.forEach(s => {
+      const parts = String(s.client.name || '').trim().split(/[\s\u3000]+/);
+      const sn = parts[0] || '';
+      (surnameCount[sn] = surnameCount[sn] || new Set()).add(parts[1] || '');
+    });
+  });
+  const shortName = c => {
+    const parts = String(c.name || '').trim().split(/[\s\u3000]+/);
+    const sn = parts[0] || '', gn = parts[1] || '';
+    if(surnameCount[sn] && surnameCount[sn].size > 1 && gn) return `${sn}（${gn[0]}）`;
+    return sn;
+  };
+  const clsOf = c => {
+    if(c._isExtra) return 'furikae';
+    if(isTrialStatus(c.status)) return 'taiken';
+    if(c.kind === '介護') return 'kaigo';
+    if(c.kind === '総合' || c.kind === '予防') return 'yobo';
+    return '';
+  };
+  let maxStops = 7;
+  Object.keys(legRegistry).forEach(id => { maxStops = Math.max(maxStops, legRegistry[id].stops.length); });
+  const COLS = 2 + maxStops + 2; // 迎送/出発 + 停留 + 運転手/アルコール
+
+  // ---- スタイル定義 ----
+  const FILL = { kaigo: 'FFF176', yobo: 'E1BEE7', taiken: 'B3E5FC', furikae: 'A8D878' };
+  const thin = { style: 'thin', color: { rgb: '666666' } };
+  const bAll = { top: thin, bottom: thin, left: thin, right: thin };
+  const base = { border: bAll, alignment: { horizontal: 'center', vertical: 'center' }, font: { sz: 9, name: 'メイリオ' } };
+  const st = o => ({ ...base, ...o, font: { ...base.font, ...(o && o.font) } });
+  const S = {
+    title: { font: { sz: 13, bold: true, name: 'メイリオ' } },
+    day:   { font: { sz: 12, bold: true, name: 'メイリオ' }, alignment: { horizontal: 'center' } },
+    date:  { font: { sz: 12, name: 'メイリオ' }, border: { bottom: { style: 'thin', color: { rgb: '333333' } } }, alignment: { horizontal: 'center' } },
+    legend: k => ({ fill: { fgColor: { rgb: FILL[k] } }, border: bAll }),
+    legendTx: { font: { sz: 8, name: 'メイリオ' }, alignment: { horizontal: 'left', vertical: 'center' } },
+    vhead: st({ fill: { fgColor: { rgb: 'E8E8E8' } }, font: { bold: true } }),
+    vno:   st({ fill: { fgColor: { rgb: 'E8E8E8' } }, font: { bold: true, sz: 10 } }),
+    tag:   st({ fill: { fgColor: { rgb: 'F3F3F0' } }, font: { bold: true } }),
+    dep:   st({ font: { bold: true } }),
+    guide: st({ font: { sz: 8, color: { rgb: '666666' } } }),
+    eta:   st({ font: { bold: true } }),
+    dist:  st({ font: { sz: 8, color: { rgb: '444444' } } }),
+    name:  k => st({ font: { bold: true }, fill: k ? { fgColor: { rgb: FILL[k] } } : undefined }),
+    alc:   st({ font: { sz: 7, color: { rgb: '999999' } }, alignment: { horizontal: 'right', vertical: 'bottom' } }),
+    footLabel: st({ fill: { fgColor: { rgb: 'E8E8E8' } }, font: { bold: true } }),
+    footBody:  st({ alignment: { horizontal: 'left', vertical: 'center', wrapText: true } }),
+  };
+
+  const rows = [];   // [{v, s}]の配列 or null
+  const merges = [];
+  const push = cells => { rows.push(cells); return rows.length - 1; };
+  const cell = (v, s) => ({ v: v == null ? '' : v, t: 's', s });
+  const M = (r1, c1, r2, c2) => merges.push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
+
+  // タイトル行+凡例
+  const dayLabel = (typeof selectedDay !== 'undefined' && selectedDay) ? `${selectedDay}曜日` : '';
+  {
+    const r = new Array(COLS).fill(null).map(() => cell(''));
+    r[0] = cell('送迎予定表　兼　送迎実施記録', S.title);
+    r[4] = cell('　　月　　日', S.date);
+    r[5] = cell(dayLabel, S.day);
+    const lg = [['kaigo','介護'],['yobo','予防(総合)'],['taiken','体験'],['furikae','振替']];
+    lg.forEach(([k, label], i) => {
+      const c = COLS - 8 + i * 2;
+      if(c > 5){
+        r[c] = cell('', S.legend(k));
+        r[c + 1] = cell(label, S.legendTx);
+      }
+    });
+    const ri = push(r);
+    M(ri, 0, ri, 3);
+  }
+  push(new Array(COLS).fill(null).map(() => cell('')));
+
+  const phases = [
+    { key: 'amPickup', tag: '迎', rows4: true },
+    { key: 'amDrop',   tag: '送', rows4: false },
+    { key: 'pmPickup', tag: '迎', rows4: true },
+    { key: 'pmDrop',   tag: '送', rows4: false },
+  ];
+  for(let v = 0; v < nVehicles; v++){
+    const carNo = vehicleCarMap[`amPickup-${v}`] || vehicleCarMap[`amDrop-${v}`] || `${v + 1}号車`;
+    // 車両ヘッダー
+    const hr = [cell(carNo, S.vno), cell('出発時間', S.vhead)];
+    for(let i = 0; i < maxStops; i++) hr.push(cell(String(i + 1), S.vhead));
+    hr.push(cell('運転手', S.vhead), cell('アルコール', S.vhead));
+    push(hr);
+
+    phases.forEach(ph => {
+      const entry = legRegistry[`leg-${ph.key}-${v}`];
+      if(!entry) return;
+      const { withEta, departMin } = legacyEtas(entry);
+      const rowN = ph.rows4 ? 4 : 2;
+      const driver = vehicleDriverMap[`${ph.key}-${v}`] || '';
+      const dep = withEta.length ? minToTime(departMin) : '';
+      const stopCell = (fn, style) => {
+        const out = [];
+        for(let i = 0; i < maxStops; i++){
+          const s = withEta[i];
+          out.push(s ? fn(s) : cell('', st({})));
+        }
+        return out;
+      };
+      const r0 = rows.length;
+      if(ph.rows4){
+        push([cell(ph.tag, S.tag), cell(dep, S.dep),
+          ...stopCell(s => cell(s.guideTargetMin !== undefined ? minToTime(s.guideTargetMin) : '', S.guide)),
+          cell(driver, S.eta), cell('mg/L', S.alc)]);
+        push([cell('', S.tag), cell('', S.dep),
+          ...stopCell(s => cell(s.etaMin !== undefined ? minToTime(s.etaMin) : '', S.eta)),
+          cell('', S.eta), cell('', S.alc)]);
+        push([cell('', S.tag), cell('', S.dep),
+          ...stopCell(s => cell(legacyDistrict(s.client.addr), S.dist)),
+          cell('', S.eta), cell('', S.alc)]);
+        push([cell('', S.tag), cell('', S.dep),
+          ...stopCell(s => cell(shortName(s.client), S.name(clsOf(s.client)))),
+          cell('', S.eta), cell('', S.alc)]);
+      } else {
+        push([cell(ph.tag, S.tag), cell(dep, S.dep),
+          ...stopCell(s => cell(s.etaMin !== undefined ? minToTime(s.etaMin) : '', S.eta)),
+          cell(driver, S.eta), cell('mg/L', S.alc)]);
+        push([cell('', S.tag), cell('', S.dep),
+          ...stopCell(s => cell(shortName(s.client), S.name(clsOf(s.client)))),
+          cell('', S.eta), cell('', S.alc)]);
+      }
+      M(r0, 0, r0 + rowN - 1, 0);                       // 迎/送
+      M(r0, 1, r0 + rowN - 1, 1);                       // 出発時間
+      M(r0, 2 + maxStops, r0 + rowN - 1, 2 + maxStops); // 運転手
+      M(r0, 3 + maxStops, r0 + rowN - 1, 3 + maxStops); // アルコール
+    });
+    push(new Array(COLS).fill(null).map(() => cell(''))); // 車両間の空行
+  }
+
+  // フッター(欠席・振替・自家用車)
+  const boxText = sel => {
+    const src = routeResultArea.querySelector(sel);
+    if(!src) return '';
+    const c = src.cloneNode(true);
+    const b = c.querySelector('b');
+    if(b) b.remove();
+    return c.textContent.replace(/\s+/g, ' ').trim();
+  };
+  const extraNames = (typeof extraEntries !== 'undefined' && extraEntries.length)
+    ? extraEntries.map(e => { const c = CLIENTS[e.idx]; return c ? `${c.name}（${e.time === 'AM' ? '午前' : '午後'}）` : ''; }).filter(Boolean).join('、')
+    : 'なし';
+  [['欠席', boxText('.absent-result-box') || 'なし'], ['振替', extraNames], ['自家用車', boxText('.car-result-box') || 'なし']].forEach(([label, body]) => {
+    const r = [cell(label, S.footLabel), cell(body, S.footBody)];
+    for(let i = 2; i < COLS; i++) r.push(cell('', S.footBody));
+    const ri = push(r);
+    M(ri, 1, ri, COLS - 1);
+  });
+
+  // ---- ワークシート化 ----
+  const ws = {};
+  rows.forEach((r, ri) => r.forEach((c, ci) => { ws[XLSX.utils.encode_cell({ r: ri, c: ci })] = c; }));
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: COLS - 1 } });
+  ws['!merges'] = merges;
+  const cols = [{ wch: 4 }, { wch: 8 }];
+  for(let i = 0; i < maxStops; i++) cols.push({ wch: 9 });
+  cols.push({ wch: 9 }, { wch: 8 });
+  ws['!cols'] = cols;
+
+  const wb = XLSX.utils.book_new();
+  const now = new Date();
+  XLSX.utils.book_append_sheet(wb, ws, `${now.getMonth() + 1}.${now.getDate()}`);
+  const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  XLSX.writeFile(wb, `送迎表_${dayLabel ? dayLabel.replace('曜日', '') + '曜_' : ''}${ymd}.xlsx`);
+}
+document.getElementById('exportXlsxBtn').addEventListener('click', exportLegacyXlsx);
 
 
 function renderAbsentList(query){
