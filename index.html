@@ -1283,6 +1283,13 @@
   #printSheet.psl .psl-legend{ margin-left:auto; font-size:9px; display:flex; align-items:center; gap:3px; }
   #printSheet.psl .psl-legend i{ display:inline-block; width:12px; height:9px; border:1px solid #999; }
   #printSheet.psl .psl-date{ font-size:13px; font-weight:700; border-bottom:1px solid #333; padding:0 8px 1px; }
+  #printSheet.psl .psl-count{
+    margin-top:3px; padding:3px 6px;
+    font-size:11px; font-weight:700; color:#111;
+    border:1px solid #666; background:#F3F3F0;
+    display:flex; gap:22px; flex-wrap:wrap;
+  }
+  #printSheet.psl .psl-count-seg b{ color:#2C5347; margin-right:2px; }
   #printSheet.psl .psl-foot{ margin-top:2px; }
   #printSheet.psl .psl-foot-row{
     display:flex; align-items:stretch; border:1px solid #666; border-top:none;
@@ -1814,7 +1821,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.20</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.23</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -3317,6 +3324,32 @@ function buildPrintSheetLegacy(){
         return c ? `${c.name}（${e.time === 'AM' ? '午前' : '午後'}）` : '';
       }).filter(Boolean).join('、')
     : 'なし';
+
+  // その日の実利用者(重複なし)を午前/午後に分けて 介護/予防/総合 を数える
+  //   午前 介護○(介護+予防○)総合○　午後 介護○(○)総合○
+  // 午前=①②の便、午後=③④の便に出た方で判定(同一人物は重複除去)
+  const tally = (phases) => {
+    const seen = new Set();
+    let k = 0, y = 0, s = 0;
+    phases.forEach(ph => {
+      for(let v = 0; legRegistry[`leg-${ph}-${v}`]; v++){
+        legRegistry[`leg-${ph}-${v}`].stops.forEach(st => {
+          const c = st.client;
+          const key = `${c.name}|${c.dup || ''}`;
+          if(seen.has(key)) return;
+          seen.add(key);
+          if(c.kind === '介護') k++;
+          else if(isYobo(c)) y++;
+          else s++;
+        });
+      }
+    });
+    return { k, y, s };
+  };
+  const am = tally(['amPickup', 'amDrop']);
+  const pm = tally(['pmPickup', 'pmDrop']);
+  const seg = t => `介護 ${t.k}名（${t.k + t.y}名）　総合 ${t.s}名`;
+  out += `<div class="psl-count"><span class="psl-count-seg"><b>午前</b>　${escapeHtml(seg(am))}</span><span class="psl-count-seg"><b>午後</b>　${escapeHtml(seg(pm))}</span></div>`;
   out += `<div class="psl-foot">
     <div class="psl-foot-row"><span class="psl-foot-label">欠席</span><span class="psl-foot-body">${escapeHtml(boxText('.absent-result-box') || 'なし')}</span></div>
     <div class="psl-foot-row"><span class="psl-foot-label">振替</span><span class="psl-foot-body">${escapeHtml(extraNames)}</span></div>
@@ -3513,9 +3546,11 @@ async function exportLegacyXlsx(){
     const r = new Array(COLS).fill(null).map(() => cell(''));
     r[0] = cell('送迎予定表　兼　送迎実施記録', S.title);
     r[4] = cell('　　月　　日', S.date);
-    r[5] = cell(dayLabel, S.day);
+    r[6] = cell(dayLabel, S.day);
     const ri = push(r);
     M(ri, 0, ri, 3);
+    M(ri, 4, ri, 5);  // 日付欄を2列分に広げて「月　日」が収まるように
+    M(ri, 6, ri, 7);  // 曜日
   }
   // 凡例は専用の2行目に「色マス＋ラベル」を左から順に並べる
   {
@@ -3603,6 +3638,36 @@ async function exportLegacyXlsx(){
   const extraNames = (typeof extraEntries !== 'undefined' && extraEntries.length)
     ? extraEntries.map(e => { const c = CLIENTS[e.idx]; return c ? `${c.name}（${e.time === 'AM' ? '午前' : '午後'}）` : ''; }).filter(Boolean).join('、')
     : 'なし';
+
+  // その日の実利用者(重複なし)を午前/午後に分けて集計
+  const tally = (phases) => {
+    const seen = new Set();
+    let k = 0, y = 0, s = 0;
+    phases.forEach(ph => {
+      for(let vv = 0; legRegistry[`leg-${ph}-${vv}`]; vv++){
+        legRegistry[`leg-${ph}-${vv}`].stops.forEach(sp => {
+          const c = sp.client;
+          const key = `${c.name}|${c.dup || ''}`;
+          if(seen.has(key)) return;
+          seen.add(key);
+          if(c.kind === '介護') k++;
+          else if(isYobo(c)) y++;
+          else s++;
+        });
+      }
+    });
+    return { k, y, s };
+  };
+  const am = tally(['amPickup', 'amDrop']);
+  const pm = tally(['pmPickup', 'pmDrop']);
+  const seg = t => `介護 ${t.k}名（${t.k + t.y}名）　総合 ${t.s}名`;
+  {
+    const r = [cell(`午前　${seg(am)}　　午後　${seg(pm)}`, st({ fill: { fgColor: { rgb: 'F3F3F0' } }, font: { bold: true, sz: 11 }, alignment: { horizontal: 'left', vertical: 'center' } }))];
+    for(let i = 1; i < COLS; i++) r.push(cell('', st({ fill: { fgColor: { rgb: 'F3F3F0' } } })));
+    const ri = push(r);
+    M(ri, 0, ri, COLS - 1);
+  }
+
   [['欠席', boxText('.absent-result-box') || 'なし'], ['振替', extraNames], ['自家用車', boxText('.car-result-box') || 'なし']].forEach(([label, body]) => {
     const r = [cell(label, S.footLabel), cell(body, S.footBody)];
     for(let i = 2; i < COLS; i++) r.push(cell('', S.footBody));
