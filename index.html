@@ -1877,7 +1877,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.32</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.33</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -4271,11 +4271,15 @@ prevRouteFileInput.addEventListener('change', (e) => loadPrevRouteFile(e.target.
 function exportCurrentRoute(){
   if(!selectedDay) return;
   const phases = {};
+  const departTimes = {}; // phaseKey -> [号車ごとの出発時刻 or null](手動変更されたもののみ)
   ['amPickup', 'amDrop', 'pmPickup', 'pmDrop'].forEach(phaseKey => {
     const vehicles = [];
+    const deps = [];
     let i = 0;
     while(legRegistry[`leg-${phaseKey}-${i}`]){
       const entry = legRegistry[`leg-${phaseKey}-${i}`];
+      // 出発時刻を手動変更した号車(_origTimingが目印)は、その時刻を保存
+      deps.push(entry._origTiming ? entry.fixedTime : null);
       const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime);
       const withEta = attachEta(entry.stops, currentOrigin, timing.departMin);
       // 手入力(打ち直し)した到着時刻があればそれを反映し、以降の行も平行シフト
@@ -4293,8 +4297,9 @@ function exportCurrentRoute(){
       i++;
     }
     phases[phaseKey] = vehicles;
+    departTimes[phaseKey] = deps;
   });
-  const data = { day: selectedDay, savedAt: new Date().toISOString(), phases };
+  const data = { day: selectedDay, savedAt: new Date().toISOString(), phases, departTimes };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -5318,6 +5323,16 @@ async function buildRoutes(){
 
       const legId = `leg-${phaseKey}-${i}`;
       legRegistry[legId] = { stops: orderedWithGuide, mode, fixedTime: effectiveFixedTime, targetTime: effectiveTargetTime, phaseKey };
+
+      // 前回、出発時刻を手動変更していた号車は、その時刻を復元する
+      const prevDepart = (previousAssignment && previousAssignment.day === selectedDay && previousAssignment.departTimes && previousAssignment.departTimes[phaseKey])
+        ? previousAssignment.departTimes[phaseKey][i] : null;
+      if(prevDepart){
+        const en = legRegistry[legId];
+        en._origTiming = { fixedTime: en.fixedTime, targetTime: en.targetTime };
+        en.fixedTime = prevDepart;
+        en.targetTime = null;
+      }
 
       section += buildVehicleCardHtml(phaseKey, i);
     }
