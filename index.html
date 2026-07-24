@@ -1877,7 +1877,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.30</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.32</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -2469,6 +2469,7 @@ async function loadCsvFile(file){
       return;
     }
     CLIENTS = clients;
+    _surnameSetCache = null; // 名簿が変わったので同姓判定キャッシュをリセット
     onDataLoaded();
     const withAddr = clients.filter(c => c.addr).length;
     const excludedMsg = clients._excludedStopped ? `／利用中止・一時休止 ${clients._excludedStopped}名を除外` : '';
@@ -3300,21 +3301,8 @@ function buildPrintSheetLegacy(){
   const nVehicles = (() => { let n = 0; while(legRegistry[`leg-amPickup-${n}`] || legRegistry[`leg-amDrop-${n}`] || legRegistry[`leg-pmPickup-${n}`] || legRegistry[`leg-pmDrop-${n}`]) n++; return n; })();
   if(!nVehicles){ return; }
 
-  // 同姓の区別:同じ苗字が複数いれば「苗字(名の頭文字)」にする
-  const surnameCount = {};
-  Object.keys(legRegistry).forEach(id => {
-    legRegistry[id].stops.forEach(s => {
-      const parts = String(s.client.name || '').trim().split(/[\s\u3000]+/);
-      const sn = parts[0] || '';
-      (surnameCount[sn] = surnameCount[sn] || new Set()).add(parts[1] || '');
-    });
-  });
-  const shortName = c => {
-    const parts = String(c.name || '').trim().split(/[\s\u3000]+/);
-    const sn = parts[0] || '', gn = parts[1] || '';
-    if(surnameCount[sn] && surnameCount[sn].size > 1 && gn) return `${sn}（${gn[0]}）`;
-    return sn;
-  };
+  // 同姓の区別:全利用者を通して同じ苗字が複数いれば「苗字(名の頭文字)」にする
+  const shortName = c => shortSurname(c);
   const isYobo = c => c.kind === '予防' || ((c.kind === '総合' || !c.kind) && /予/.test(c.dup || ''));
   const cellCls = c => {
     if(c._isExtra) return ' c-furikae';
@@ -3615,20 +3603,7 @@ async function exportLegacyXlsx(){
   catch(e){ alert('Excel出力用ライブラリの読み込みに失敗しました。ネット接続をご確認ください。'); return; }
 
   // ---- 印刷(1枚印刷用)と同じデータ組み立て ----
-  const surnameCount = {};
-  Object.keys(legRegistry).forEach(id => {
-    legRegistry[id].stops.forEach(s => {
-      const parts = String(s.client.name || '').trim().split(/[\s\u3000]+/);
-      const sn = parts[0] || '';
-      (surnameCount[sn] = surnameCount[sn] || new Set()).add(parts[1] || '');
-    });
-  });
-  const shortName = c => {
-    const parts = String(c.name || '').trim().split(/[\s\u3000]+/);
-    const sn = parts[0] || '', gn = parts[1] || '';
-    if(surnameCount[sn] && surnameCount[sn].size > 1 && gn) return `${sn}（${gn[0]}）`;
-    return sn;
-  };
+  const shortName = c => shortSurname(c);
   const isYobo = c => c.kind === '予防' || ((c.kind === '総合' || !c.kind) && /予/.test(c.dup || ''));
   const clsOf = c => {
     if(c._isExtra) return 'furikae';
@@ -4092,6 +4067,26 @@ function timeToMin(hhmm){
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + m;
 }
+// 全利用者(CLIENTS)を通して、同じ苗字が複数いる場合に頭文字付き表示にする。
+// 利用曜日が違っても同姓なら区別できるよう、その日のルートだけでなく全体を見る。
+let _surnameSetCache = null;
+function surnameNeedsGiven(surname){
+  if(!_surnameSetCache){
+    _surnameSetCache = {};
+    (typeof CLIENTS !== 'undefined' ? CLIENTS : []).forEach(c => {
+      const parts = String(c.name || '').trim().split(/[\s\u3000]+/);
+      const sn = parts[0] || '';
+      if(!sn) return;
+      (_surnameSetCache[sn] = _surnameSetCache[sn] || new Set()).add(parts[1] || '');
+    });
+  }
+  return _surnameSetCache[surname] && _surnameSetCache[surname].size > 1;
+}
+function shortSurname(c){
+  const parts = String(c.name || '').trim().split(/[\s\u3000]+/);
+  const sn = parts[0] || '', gn = parts[1] || '';
+  return (surnameNeedsGiven(sn) && gn) ? `${sn}（${gn[0]}）` : sn;
+}
 function minToTime(mins){
   mins = Math.round(mins);
   const h = Math.floor(mins / 60) % 24;
@@ -4283,9 +4278,17 @@ function exportCurrentRoute(){
       const entry = legRegistry[`leg-${phaseKey}-${i}`];
       const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime);
       const withEta = attachEta(entry.stops, currentOrigin, timing.departMin);
+      // 手入力(打ち直し)した到着時刻があればそれを反映し、以降の行も平行シフト
+      let etaShift = 0;
+      withEta.forEach((s, idx) => {
+        const src = entry.stops[idx];
+        if(src && src._etaManual !== undefined){ etaShift = src._etaManual - s.etaMin; s.etaMin = src._etaManual; s._savedManual = true; }
+        else { s.etaMin += etaShift; }
+      });
       vehicles.push(withEta.map(s => ({
         key: `${s.client.name}|${s.client.dup || ''}`,
         etaMin: Math.round(s.etaMin),
+        manual: s._savedManual ? true : undefined, // 手入力だった時刻の目印
       })));
       i++;
     }
@@ -5179,8 +5182,21 @@ async function buildRoutes(){
     if(!prevPhaseAssignment) return map;
     prevPhaseAssignment.forEach(vehicle => {
       (vehicle || []).forEach(entry => {
-        // 新形式: {key, etaMin}。旧形式(文字列のみ)の場合は時刻情報がないので無視する
+        // 新形式: {key, etaMin, manual?}。旧形式(文字列のみ)の場合は時刻情報がないので無視する
         if(entry && typeof entry === 'object' && entry.key && typeof entry.etaMin === 'number'){
+          map.set(entry.key, entry.etaMin);
+        }
+      });
+    });
+    return map;
+  }
+  // 前回「手入力で打ち直した」時刻だけを集めたマップ(復元用)
+  function buildPrevManualMap(prevPhaseAssignment){
+    const map = new Map();
+    if(!prevPhaseAssignment) return map;
+    prevPhaseAssignment.forEach(vehicle => {
+      (vehicle || []).forEach(entry => {
+        if(entry && typeof entry === 'object' && entry.key && entry.manual && typeof entry.etaMin === 'number'){
           map.set(entry.key, entry.etaMin);
         }
       });
@@ -5285,6 +5301,7 @@ async function buildRoutes(){
       // お迎え(迎え)区間のみ、案内時間(曜日別)とのズレをチェックできるよう付与する。
       // また、前回ルートがあれば前回到着時刻も付与し、お迎え時間が安定しているか比較できるようにする
       const prevEtaMap = buildPrevEtaMap(prevPhaseAssignment);
+      const prevManualMap = buildPrevManualMap(prevPhaseAssignment);
       const orderedWithGuide = ordered.map(p => {
         let extra = {};
         if(kindTag === 'pick'){
@@ -5293,6 +5310,9 @@ async function buildRoutes(){
         }
         const prevEta = prevEtaMap.get(keyOfClient(p.client));
         if(prevEta !== undefined) extra.prevEtaMin = prevEta;
+        // 前回手入力で打ち直した時刻があれば、その値を手入力として復元する
+        const prevManual = prevManualMap.get(keyOfClient(p.client));
+        if(prevManual !== undefined) extra._etaManual = prevManual;
         return { ...p, ...extra };
       });
 
