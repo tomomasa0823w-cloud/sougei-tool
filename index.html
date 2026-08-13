@@ -781,6 +781,17 @@
     line-height: 1.7;
   }
   .car-result-box b{ display:block; margin-bottom: 4px; }
+  .phase-overflow-note{
+    background: #FBE9C7;
+    border: 1px solid #E0A94B;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #8A5A00;
+    margin: 4px 0 10px;
+    line-height: 1.6;
+  }
   @media print{ .absent-config{ display:none !important; } }
   .route-progress{
     margin-top: 10px;
@@ -1877,7 +1888,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.33</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.34</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -5286,8 +5297,15 @@ async function buildRoutes(){
       }
     }
 
+    // 定員(7名/台)超過で内部的に号車が増えた場合、設定台数ぶんしか描画しないと
+    // あふれた号車の利用者が表示されず「迎えには出るが送りには出ない」等の抜けが起きる。
+    // 実際に生成された号車数(orderedGroups.length)まで必ず描画して、誰も消えないようにする。
+    const renderCount = Math.max(count, orderedGroups.length);
     let section = `<div class="phase-section" data-phase="${phaseKey}"><h2 class="phase-section-title">${sectionTitle}</h2>`;
-    for(let i = 0; i < count; i++){
+    if(renderCount > count){
+      section += `<div class="phase-overflow-note">⚠ 利用者が定員(7名/台)を超えたため、設定の${count}台から自動で${renderCount}台に増車しました。担当者・車No.をご確認ください。</div>`;
+    }
+    for(let i = 0; i < renderCount; i++){
       const groupOrdered = orderedGroups[i] || [];
       const firstPts = groupOrdered.filter(p => p.resolvedPref && p.resolvedPref.type === 'first');
       const fixedPts = groupOrdered.filter(p => p.resolvedPref && p.resolvedPref.type === 'fixed');
