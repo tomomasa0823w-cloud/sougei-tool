@@ -1888,7 +1888,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.34</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.35</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -4332,13 +4332,24 @@ function computePhaseTiming(orderedPoints, mode, fixedTime, targetTime){
   }
   return { departMin: timeToMin(fixedTime), min };
 }
-function phaseRouteUrl(ordered, mode){
+function phaseRouteUrl(ordered, mode, phaseKey, vIndex){
   if(!ordered.length) return '#';
+  // 出発地は通常は店舗。ただし③昼迎えは、②昼送りで店舗に戻らず
+  // 同じ号車の最終降車地点からそのままお迎えに向かう運用のため、
+  // その号車(番号一致)の最後の降車先を出発地にする。
+  // 該当する②昼送りの号車が無い/降車先が無い場合は従来通り店舗発。
+  let originAddr = GAKU_ORIGIN;
+  if(phaseKey === 'pmPickup' && typeof vIndex === 'number' && vIndex >= 0){
+    const dropEntry = (typeof legRegistry !== 'undefined') ? legRegistry[`leg-amDrop-${vIndex}`] : null;
+    if(dropEntry && dropEntry.stops && dropEntry.stops.length){
+      originAddr = dropEntry.stops[dropEntry.stops.length - 1].client.addr;
+    }
+  }
   if(mode === 'loop'){
-    return buildRouteUrl(GAKU_ORIGIN, ordered.map(p => p.client.addr), GAKU_ORIGIN);
+    return buildRouteUrl(originAddr, ordered.map(p => p.client.addr), GAKU_ORIGIN);
   }
   const last = ordered[ordered.length - 1].client.addr;
-  return buildRouteUrl(GAKU_ORIGIN, ordered.slice(0, -1).map(p => p.client.addr), last);
+  return buildRouteUrl(originAddr, ordered.slice(0, -1).map(p => p.client.addr), last);
 }
 
 // ── 号車カードの共通テンプレート(初回生成・後からの追加の両方で使用) ──
@@ -4540,7 +4551,8 @@ function renderLegHtmlFor(legId){
       s.etaMin += etaShift;
     }
   });
-  const routeUrl = phaseRouteUrl(entry.stops, entry.mode);
+  const _vIdx = parseInt(String(legId).split('-')[2], 10);
+  const routeUrl = phaseRouteUrl(entry.stops, entry.mode, entry.phaseKey, isNaN(_vIdx) ? -1 : _vIdx);
   const longTrip = timing.min > 90;
   // 出発時刻の編集コントロール(手動変更後は「↺自動」で元の自動計算に戻せる)
   const dm = Math.round(timing.departMin);
