@@ -1888,7 +1888,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.35</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.36</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -3277,8 +3277,10 @@ function buildPrintSheetByVehicle(){
 // 1台=12行ブロック:朝迎[案内/到着/地区/苗字] 昼送[時刻/苗字] 昼迎[4行] 夕送[2行]
 function legacyEtas(entry){
   // renderLegHtmlForと同じ時刻計算(手動上書き・平行シフト込み)
-  const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime);
-  const withEta = attachEta(entry.stops, currentOrigin, timing.departMin);
+  // ③昼迎えは②の最終降車地点を起点、到着地は店舗として計算する
+  const startPt = phaseStartPoint(entry.phaseKey, entry.vIndex);
+  const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime, startPt, currentOrigin);
+  const withEta = attachEta(entry.stops, startPt, timing.departMin);
   let etaShift = 0;
   withEta.forEach(s => {
     if(s.etaMin === undefined) return;
@@ -4064,12 +4066,14 @@ function kmDist(a, b){
 const EST_STOP_MIN = 4;     // 1件あたりの乗降・対応時間の目安(分)
 const EST_SPEED_KMH = 25;   // 市街地走行の平均速度の目安
 const EST_ROAD_FACTOR = 0.95; // 直線距離→実際の道路距離への補正係数
-function estimateLegMinutes(start, orderedPoints, returnToStart){
+function estimateLegMinutes(start, orderedPoints, returnToStart, endPoint){
   if(!orderedPoints.length) return 0;
   let totalKm = 0;
   let prev = start;
   orderedPoints.forEach(p => { totalKm += kmDist(prev, p); prev = p; });
-  if(returnToStart) totalKm += kmDist(prev, start);
+  // returnToStart=trueの区間は最後に基準地点へ戻る。通常は出発地(start)へ戻るが、
+  // 出発地と到着地が異なる場合(例:③昼迎えは②の降車地点発→店舗着)はendPointを到着地にする。
+  if(returnToStart) totalKm += kmDist(prev, endPoint || start);
   const driveMin = totalKm * EST_ROAD_FACTOR / EST_SPEED_KMH * 60;
   const stopMin = orderedPoints.length * EST_STOP_MIN;
   return driveMin + stopMin;
@@ -4291,8 +4295,9 @@ function exportCurrentRoute(){
       const entry = legRegistry[`leg-${phaseKey}-${i}`];
       // 出発時刻を手動変更した号車(_origTimingが目印)は、その時刻を保存
       deps.push(entry._origTiming ? entry.fixedTime : null);
-      const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime);
-      const withEta = attachEta(entry.stops, currentOrigin, timing.departMin);
+      const startPt = phaseStartPoint(entry.phaseKey, entry.vIndex);
+      const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime, startPt, currentOrigin);
+      const withEta = attachEta(entry.stops, startPt, timing.departMin);
       // 手入力(打ち直し)した到着時刻があればそれを反映し、以降の行も平行シフト
       let etaShift = 0;
       withEta.forEach((s, idx) => {
@@ -4324,28 +4329,39 @@ function exportCurrentRoute(){
 saveRouteBtn.addEventListener('click', exportCurrentRoute);
 
 // 区間ごとの出発時刻(目標到着時刻からの逆算、または固定出発)を計算
-function computePhaseTiming(orderedPoints, mode, fixedTime, targetTime){
-  const min = estimateLegMinutes(currentOrigin, orderedPoints, mode === 'loop');
+function computePhaseTiming(orderedPoints, mode, fixedTime, targetTime, startPoint, endPoint){
+  const start = startPoint || currentOrigin;
+  const end = endPoint || currentOrigin;
+  const min = estimateLegMinutes(start, orderedPoints, mode === 'loop', end);
   if(targetTime){
     const departMin = roundStep(timeToMin(targetTime) - min, 5, 'down');
     return { departMin, min };
   }
   return { departMin: timeToMin(fixedTime), min };
 }
+// ③昼迎えは、②昼送りで店舗に戻らず同じ号車(番号一致)の最終降車地点から
+// そのままお迎えに向かう運用。その「起点となる②の最終降車停車」を返す。
+// 該当する②昼送りの号車が無い/降車先が無い場合はnull(=従来通り店舗起点)。
+function dropTerminusFor(phaseKey, vIndex){
+  if(phaseKey !== 'pmPickup' || typeof vIndex !== 'number' || vIndex < 0) return null;
+  const d = (typeof legRegistry !== 'undefined') ? legRegistry[`leg-amDrop-${vIndex}`] : null;
+  if(d && d.stops && d.stops.length) return d.stops[d.stops.length - 1];
+  return null;
+}
+// 時刻・距離計算の起点となる座標。③昼迎えは②の最終降車地点、それ以外は店舗。
+function phaseStartPoint(phaseKey, vIndex){
+  const t = dropTerminusFor(phaseKey, vIndex);
+  if(t && typeof t.lat === 'number' && typeof t.lng === 'number'){
+    return { lat: t.lat, lng: t.lng, _isDropTerminus: true };
+  }
+  return currentOrigin;
+}
 function phaseRouteUrl(ordered, mode, phaseKey, vIndex){
   if(!ordered.length) return '#';
-  // 出発地は通常は店舗。ただし③昼迎えは、②昼送りで店舗に戻らず
-  // 同じ号車の最終降車地点からそのままお迎えに向かう運用のため、
-  // その号車(番号一致)の最後の降車先を出発地にする。
-  // 該当する②昼送りの号車が無い/降車先が無い場合は従来通り店舗発。
-  let originAddr = GAKU_ORIGIN;
-  if(phaseKey === 'pmPickup' && typeof vIndex === 'number' && vIndex >= 0){
-    const dropEntry = (typeof legRegistry !== 'undefined') ? legRegistry[`leg-amDrop-${vIndex}`] : null;
-    if(dropEntry && dropEntry.stops && dropEntry.stops.length){
-      originAddr = dropEntry.stops[dropEntry.stops.length - 1].client.addr;
-    }
-  }
+  const t = dropTerminusFor(phaseKey, vIndex);
+  const originAddr = (t && t.client && t.client.addr) ? t.client.addr : GAKU_ORIGIN;
   if(mode === 'loop'){
+    // ③昼迎えでも到着地(destination)は店舗のまま。出発地だけ②の最終降車地点にする。
     return buildRouteUrl(originAddr, ordered.map(p => p.client.addr), GAKU_ORIGIN);
   }
   const last = ordered[ordered.length - 1].client.addr;
@@ -4437,7 +4453,7 @@ function addVehicleToPhase(phaseKey){
   const ref = legRegistry[`leg-${phaseKey}-0`];
   if(!ref) return;
   const n = phaseVehicleCount(phaseKey);
-  legRegistry[`leg-${phaseKey}-${n}`] = { stops: [], mode: ref.mode, fixedTime: ref.fixedTime, targetTime: ref.targetTime, phaseKey };
+  legRegistry[`leg-${phaseKey}-${n}`] = { stops: [], mode: ref.mode, fixedTime: ref.fixedTime, targetTime: ref.targetTime, phaseKey, vIndex: n };
   if(typeof selectedVehicleCounts !== 'undefined' && selectedVehicleCounts[phaseKey] !== undefined){
     selectedVehicleCounts[phaseKey] = Math.max(selectedVehicleCounts[phaseKey], n + 1);
   }
@@ -4537,8 +4553,11 @@ async function addStopToLeg(legId){
 
 function renderLegHtmlFor(legId){
   const entry = legRegistry[legId];
-  const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime);
-  const withEta = attachEta(entry.stops, currentOrigin, timing.departMin);
+  // ③昼迎えは②の最終降車地点を起点に、到着地は店舗として時刻計算する
+  const startPt = phaseStartPoint(entry.phaseKey, entry.vIndex);
+  const chainedFromDrop = !!(startPt && startPt._isDropTerminus);
+  const timing = computePhaseTiming(entry.stops, entry.mode, entry.fixedTime, entry.targetTime, startPt, currentOrigin);
+  const withEta = attachEta(entry.stops, startPt, timing.departMin);
   // 手動で打ち込まれた到着時刻を反映する。
   // 上書きした行以降は同じ差分だけ平行シフト(現場の実感時刻に合わせられる)
   let etaShift = 0;
@@ -4561,11 +4580,16 @@ function renderLegHtmlFor(legId){
   let timeLabel;
   let lateAlert = '';
   if(entry.targetTime){
-    timeLabel = `${minToTime(timing.departMin)} ${shopLabel()}出発(目安) → ${entry.targetTime} ${shopLabel()}到着${longTrip ? ' ⚠通常より早めの出発が必要です' : ''}`;
+    // ③昼迎えを②の最終降車地点から始める場合は「店舗出発」ではなく「昼送り後に出発」と表示
+    const departLabel = chainedFromDrop
+      ? `${minToTime(timing.departMin)} 昼送りの降車後に出発(目安)`
+      : `${minToTime(timing.departMin)} ${shopLabel()}出発(目安)`;
+    timeLabel = `${departLabel} → ${entry.targetTime} ${shopLabel()}到着${longTrip ? ' ⚠通常より早めの出発が必要です' : ''}`;
   } else {
     // 完了目安は実際の最終停車到着時刻をそのまま使う(丸めによる見かけ上の遅延超過を避ける)
     const completeMin = withEta.length ? Math.round(withEta[withEta.length - 1].etaMin) : timing.departMin;
-    timeLabel = `${entry.fixedTime} ${shopLabel()}出発 → 完了目安 ${minToTime(completeMin)}`;
+    const departLabel2 = chainedFromDrop ? `${entry.fixedTime} 昼送りの降車後に出発` : `${entry.fixedTime} ${shopLabel()}出発`;
+    timeLabel = `${departLabel2} → 完了目安 ${minToTime(completeMin)}`;
     // ①お迎え区間でスタッフ出勤時刻を固定した場合、目標ゾーン(8:55〜9:00)に収まるかチェックする
     if(entry.phaseKey === 'amPickup'){
       const deadlineMin = timeToMin(AM_ARRIVAL_DEADLINE);
@@ -5352,7 +5376,7 @@ async function buildRoutes(){
       });
 
       const legId = `leg-${phaseKey}-${i}`;
-      legRegistry[legId] = { stops: orderedWithGuide, mode, fixedTime: effectiveFixedTime, targetTime: effectiveTargetTime, phaseKey };
+      legRegistry[legId] = { stops: orderedWithGuide, mode, fixedTime: effectiveFixedTime, targetTime: effectiveTargetTime, phaseKey, vIndex: i };
 
       // 前回、出発時刻を手動変更していた号車は、その時刻を復元する
       const prevDepart = (previousAssignment && previousAssignment.day === selectedDay && previousAssignment.departTimes && previousAssignment.departTimes[phaseKey])
