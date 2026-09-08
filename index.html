@@ -1888,7 +1888,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.36</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.37</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -4066,6 +4066,7 @@ function kmDist(a, b){
 const EST_STOP_MIN = 4;     // 1件あたりの乗降・対応時間の目安(分)
 const EST_SPEED_KMH = 25;   // 市街地走行の平均速度の目安
 const EST_ROAD_FACTOR = 0.95; // 直線距離→実際の道路距離への補正係数
+const VEHICLE_CAPACITY = 7; // 送迎車1台の定員(運転手を除く乗車人数の上限)。自動生成・手動操作の両方でこれを超えないようにする
 function estimateLegMinutes(start, orderedPoints, returnToStart, endPoint){
   if(!orderedPoints.length) return 0;
   let totalKm = 0;
@@ -4521,6 +4522,11 @@ function removeStopFromLeg(legId, pos){
 async function addStopToLeg(legId){
   const entry = legRegistry[legId];
   if(!entry) return;
+  // 定員(7名)チェック:すでに定員の号車には追加させない
+  if(entry.stops.length >= VEHICLE_CAPACITY){
+    alert(`この号車はすでに定員(${VEHICLE_CAPACITY}名)です。\n別の号車に追加するか、「＋号車を追加」で号車を増やしてから追加してください。`);
+    return;
+  }
   const q = prompt('追加する方の氏名を入力してください\n(登録利用者から検索します。新規の方は氏名をそのまま入力)');
   if(!q || !q.trim()) return;
   const qq = q.trim();
@@ -4627,6 +4633,11 @@ function transferStop(fromLegId, pos, toVehicleIdx){
   const toLegId = `leg-${phaseKey}-${toVehicleIdx}`;
   const toEntry = legRegistry[toLegId];
   if(!toEntry) return;
+  // 定員(7名)チェック:すでに定員の号車へは移動させない
+  if(toEntry.stops.length >= VEHICLE_CAPACITY){
+    alert(`移動先の${toVehicleIdx + 1}号車はすでに定員(${VEHICLE_CAPACITY}名)です。\n別の号車を選ぶか、「＋号車を追加」で号車を増やしてから移動してください。`);
+    return;
+  }
   // 元号車から取り出して移動先号車の末尾に追加
   const [stop] = fromEntry.stops.splice(pos, 1);
   toEntry.stops.push(stop);
@@ -5105,7 +5116,7 @@ async function buildRoutes(){
     return groups;
   }
 
-  const MAX_PER_VEHICLE = 7; // 送迎車1台の定員(運転手を除く乗車人数の上限)
+  const MAX_PER_VEHICLE = VEHICLE_CAPACITY; // 送迎車1台の定員(運転手を除く乗車人数の上限)
 
   // どの号車も定員(7人)を超えないように調整する。
   // 空きのある号車へ近い順に移し、それでも収まらなければ号車を増やす。
