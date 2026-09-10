@@ -1888,7 +1888,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.37</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.39</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -5149,11 +5149,64 @@ async function buildRoutes(){
     return gs;
   }
 
+  // 1つの号車のループ走行距離(店→各停車→店)を実距離(km)で概算する
+  function groupRouteKm(g){
+    if(!g.length) return 0;
+    let d = kmDist(origin, g[0]);
+    for(let i = 1; i < g.length; i++) d += kmDist(g[i-1], g[i]);
+    d += kmDist(g[g.length-1], origin);
+    return d;
+  }
+
+  // 号車間の人数の偏りを緩める。差が大きい(3名以上)ときだけ、
+  // 「移す人」は“総走行距離の増加がいちばん小さくなる人”を選び、
+  // 増加が BALANCE_MAX_EXTRA_KM を超える移動はしない(＝道が極端に遠回りになる均しはやめる)。
+  // 同乗NG・同乗必須・定員7名は壊さない。差が2名以内になったら十分バランス済みとして止める。
+  const BALANCE_MAX_EXTRA_KM = 3.0; // これ以上の遠回りを生む移動は、人数を均すためでも行わない
+  function rebalanceGroups(groups, ngPairs, mustPairs, kindTag){
+    let gs = groups.map(g => g.slice());
+    if(gs.length < 2) return gs;
+    // pが同じ号車の誰かと同乗必須(=ペアを崩したくない)か
+    const pairedWithin = (p, g) => g.some(q => q !== p && (
+      ((p.client.mustRide||[]).includes(q.client.name)) ||
+      ((q.client.mustRide||[]).includes(p.client.name))
+    ));
+    let guard = 0;
+    for(;;){
+      if(++guard > 500) break;
+      // 最少人数の号車を移動先にする
+      let minI = -1, minN = Infinity;
+      gs.forEach((g,i)=>{ if(g.length < minN){ minN = g.length; minI = i; } });
+      const target = gs[minI];
+      // 制約を壊さず、かつ遠回りが最小になる移動を全候補から探す
+      let best = null; // { si, idx, addKm, newSrc, newTarget }
+      gs.forEach((src, si)=>{
+        if(si === minI) return;
+        if(src.length - minN < 3) return; // 差が2名以内の号車は動かさない
+        const before = groupRouteKm(src) + groupRouteKm(target);
+        src.forEach((p, idx)=>{
+          if(pairedWithin(p, src)) return;                                    // 同乗必須ペアは崩さない
+          if(target.some(q=>isNgPair(p.client.name, q.client.name, ngPairs))) return; // 移動先で同乗NGになる人は避ける
+          const newSrc = src.slice(); newSrc.splice(idx, 1);
+          const newTarget = target.slice(); insertAtBestPosition(newTarget, p, kindTag);
+          const addKm = (groupRouteKm(newSrc) + groupRouteKm(newTarget)) - before;
+          if(addKm <= BALANCE_MAX_EXTRA_KM && (!best || addKm < best.addKm)){
+            best = { si, idx, addKm, newSrc, newTarget };
+          }
+        });
+      });
+      if(!best) break; // 遠回りにならない範囲で動かせる人がいない → ここで終了(地理的に妥当な偏りは残す)
+      gs[best.si] = best.newSrc;
+      gs[minI] = best.newTarget;
+    }
+    return gs;
+  }
+
   function buildOrderedGroups(points, count, prevPhaseAssignment, kindTag){
     const ngPairs = buildNgPairs(points);
     const mustPairs = buildMustPairs(points);
-    // 最終的にどの経路でも「同乗必須ペアを同じ号車にまとめる」→「定員7人を超えない」を適用する
-    const finish = (gs) => enforceCapacity(resolveMustPairs(gs, mustPairs, ngPairs, kindTag), kindTag);
+    // 最終的にどの経路でも「同乗必須ペアを同じ号車にまとめる」→「定員7人を超えない」→「人数の偏りを緩める」を適用する
+    const finish = (gs) => rebalanceGroups(enforceCapacity(resolveMustPairs(gs, mustPairs, ngPairs, kindTag), kindTag), ngPairs, mustPairs, kindTag);
 
     // 前回ルートが読み込まれている場合は、まず「前回と同じ人の構成」を再現する
     if(prevPhaseAssignment){
