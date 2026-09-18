@@ -1900,7 +1900,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.41</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.42</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -2124,6 +2124,10 @@
         <option value="compact">印刷:全体まとめ(1枚)</option>
         <option value="vehicle">印刷:号車ごと1枚(超拡大)</option>
       </select>
+      <label class="town-toggle" id="townTogglePrint" title="印刷(1枚印刷用)で、氏名の上に町名(地区名)を表示するか切り替えます">
+        <input type="checkbox" id="townToggleChkPrint" checked>
+        氏名の上に町名を表示する
+      </label>
       <button class="save-route-btn" id="saveRouteBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
         今回のルートを保存(次回用)
@@ -2410,11 +2414,21 @@ const prevRouteStatusEl = document.getElementById('prevRouteStatus');
 const saveRouteBtn = document.getElementById('saveRouteBtn');
 // 出力系ボタン(保存・CSV・Excel)の表示をまとめて切り替える
 function toggleExportButtons(show){
-  ['saveRouteBtn', 'exportCsvBtn', 'exportXlsxBtn', 'previewBtn', 'townToggle'].forEach(id => {
+  ['saveRouteBtn', 'exportCsvBtn', 'exportXlsxBtn', 'previewBtn', 'townToggle', 'townTogglePrint'].forEach(id => {
     const b = document.getElementById(id);
     if(b) b.classList.toggle('show', show);
   });
 }
+
+// 町名表示チェックは「Excel出力用」と「印刷用」の2か所にあるので、常に同じ状態に同期する
+(function syncTownToggles(){
+  const a = document.getElementById('townToggleChk');
+  const b = document.getElementById('townToggleChkPrint');
+  if(!a || !b) return;
+  const sync = (from, to) => from.addEventListener('change', () => { to.checked = from.checked; });
+  sync(a, b);
+  sync(b, a);
+})();
 
 // CSV読み込み後に参照される変数を事前宣言
 let currentDayClients = [];
