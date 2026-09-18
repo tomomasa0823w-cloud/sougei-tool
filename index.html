@@ -1319,6 +1319,15 @@
     flex:1; padding:2px 6px; font-size:9.5px; display:flex; align-items:center;
     white-space:normal;
   }
+  /* 一番下:午前(左)/午後(右)の2ボックス */
+  #printSheet.psl .psl-ampm{ display:flex; gap:6px; margin-top:3px; }
+  #printSheet.psl .psl-ampm-col{ flex:1; border:1px solid #666; }
+  #printSheet.psl .psl-ampm-head{ font-size:10px; font-weight:800; text-align:center; background:#D9E3DC; color:#111; padding:2px 0; border-bottom:1px solid #666; }
+  #printSheet.psl .psl-ampm-row{ display:flex; align-items:stretch; border-top:1px solid #ccc; }
+  #printSheet.psl .psl-ampm-row:first-of-type{ border-top:none; }
+  #printSheet.psl .psl-ampm-lbl{ flex:0 0 58px; font-size:9px; font-weight:700; background:#F3F3F0; border-right:1px solid #ccc; display:flex; align-items:center; justify-content:center; padding:2px 0; text-align:center; }
+  #printSheet.psl .psl-ampm-val{ flex:1; font-size:9px; padding:2px 5px; display:flex; align-items:center; white-space:normal; }
+  #printSheet.psl .psl-grand{ margin-top:2px; padding:3px 6px; font-size:11px; font-weight:900; text-align:center; border:1px solid #666; background:#F3F3F0; color:#111; }
   #printSheet.psl .psl-table{
     border-collapse: collapse; width:100%; table-layout: fixed;
     margin-bottom: 6px;
@@ -1891,7 +1900,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.40</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.41</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -3396,24 +3405,8 @@ function buildPrintSheetLegacy(){
     });
     out += `<table class="psl-table">${head}${body}</table>`;
   }
-  // 一番下:欠席・振替・自家用車の名簿
-  const boxText = sel => {
-    const src = routeResultArea.querySelector(sel);
-    if(!src) return '';
-    const c = src.cloneNode(true);
-    const b = c.querySelector('b');
-    if(b) b.remove();
-    return c.textContent.replace(/\s+/g, ' ').trim();
-  };
-  const extraNames = (typeof extraEntries !== 'undefined' && extraEntries.length)
-    ? extraEntries.map(e => {
-        const c = CLIENTS[e.idx];
-        return c ? `${c.name}（${e.time === 'AM' ? '午前' : '午後'}）` : '';
-      }).filter(Boolean).join('、')
-    : 'なし';
-
+  // 一番下:午前(左)/午後(右)のブロックに分けて表示(Excel出力と同じ体裁)
   // その日の実利用者(重複なし)を午前/午後に分けて 介護/予防/総合 を数える
-  //   午前 介護○(介護+予防○)総合○　午後 介護○(○)総合○
   // 午前=①②の便、午後=③④の便に出た方で判定(同一人物は重複除去)
   const tally = (phases) => {
     const seen = new Set();
@@ -3435,16 +3428,29 @@ function buildPrintSheetLegacy(){
   };
   const am = tally(['amPickup', 'amDrop']);
   const pm = tally(['pmPickup', 'pmDrop']);
-  const seg = t => `介護 ${t.k}名（${t.k + t.y}名）　総合 ${t.s}名`;
-  const amTotal = am.k + am.y + am.s;  // 午前の実人数
-  const pmTotal = pm.k + pm.y + pm.s;  // 午後の実人数
+  const amTotal = am.k + am.y + am.s;   // 午前の実人数
+  const pmTotal = pm.k + pm.y + pm.s;   // 午後の実人数
   const grandTotal = amTotal + pmTotal; // 延べ総利用者数
-  out += `<div class="psl-count"><span class="psl-count-seg"><b>午前</b>　${escapeHtml(seg(am))}</span><span class="psl-count-seg"><b>午後</b>　${escapeHtml(seg(pm))}</span><span class="psl-count-total">合計 ${grandTotal}名</span></div>`;
-  out += `<div class="psl-foot">
-    <div class="psl-foot-row"><span class="psl-foot-label">欠席</span><span class="psl-foot-body">${escapeHtml(boxText('.absent-result-box') || 'なし')}</span></div>
-    <div class="psl-foot-row"><span class="psl-foot-label">振替</span><span class="psl-foot-body">${escapeHtml(extraNames)}</span></div>
-    <div class="psl-foot-row"><span class="psl-foot-label">自家用車</span><span class="psl-foot-body">${escapeHtml(boxText('.car-result-box') || 'なし')}</span></div>
-  </div>`;
+  const useLine = t => `介護 ${t.k}名（${t.k + t.y}名）・総合 ${t.s}名　計 ${t.k + t.y + t.s}名`;
+
+  // 欠席・振替・自家用車を {name,time} にそろえ、AM/PMで取り出す
+  const nm = c => `${c.name}${c.dup ? '（' + c.dup + '）' : ''}`;
+  const dayClients = (typeof currentDayClients !== 'undefined') ? currentDayClients : [];
+  const absentItems = dayClients.filter(c => absentIdxSet.has(c._idx)).map(c => ({ name: nm(c), time: c.time }));
+  const carItems = CLIENTS.filter(c => c.status === '自家用車' && selectedDay && c.day && c.day.includes(selectedDay)).map(c => ({ name: nm(c), time: c.time }));
+  const extraItems = ((typeof extraEntries !== 'undefined') ? extraEntries : [])
+    .map(e => ({ c: CLIENTS[e.idx], time: e.time })).filter(x => x.c).map(x => ({ name: nm(x.c), time: x.time }));
+  const pick = (items, t) => { const a = items.filter(i => i.time === t).map(i => i.name); return a.length ? a.join('、') : 'なし'; };
+  const col = (title, t, useT) => `
+    <div class="psl-ampm-col">
+      <div class="psl-ampm-head">${title}</div>
+      <div class="psl-ampm-row"><span class="psl-ampm-lbl">利用者数</span><span class="psl-ampm-val">${escapeHtml(useLine(useT))}</span></div>
+      <div class="psl-ampm-row"><span class="psl-ampm-lbl">欠席</span><span class="psl-ampm-val">${escapeHtml(pick(absentItems, t))}</span></div>
+      <div class="psl-ampm-row"><span class="psl-ampm-lbl">振替</span><span class="psl-ampm-val">${escapeHtml(pick(extraItems, t))}</span></div>
+      <div class="psl-ampm-row"><span class="psl-ampm-lbl">自家用車</span><span class="psl-ampm-val">${escapeHtml(pick(carItems, t))}</span></div>
+    </div>`;
+  out += `<div class="psl-ampm">${col('◆ 午前', 'AM', am)}${col('◆ 午後', 'PM', pm)}</div>`;
+  out += `<div class="psl-grand">合計 ${grandTotal}名（午前 ${amTotal}名 ／ 午後 ${pmTotal}名）</div>`;
 
   sheet.innerHTML = out;
   document.body.appendChild(sheet);
