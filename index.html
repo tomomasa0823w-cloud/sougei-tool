@@ -1900,7 +1900,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.42</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.43</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -2012,6 +2012,8 @@
         <div class="phase-vehicle-item">
           <div class="phase-vehicle-label">①お迎え</div>
           <div class="vehicle-picker" id="vehiclePicker-amPickup" data-phase="amPickup">
+            <button data-count="1">1台</button>
+            <button data-count="2">2台</button>
             <button data-count="3">3台</button>
             <button data-count="4">4台</button>
             <button data-count="5" class="active">5台</button>
@@ -2054,6 +2056,8 @@
         <div class="phase-vehicle-item">
           <div class="phase-vehicle-label">②昼送り</div>
           <div class="vehicle-picker" id="vehiclePicker-amDrop" data-phase="amDrop">
+            <button data-count="1">1台</button>
+            <button data-count="2">2台</button>
             <button data-count="3">3台</button>
             <button data-count="4">4台</button>
             <button data-count="5" class="active">5台</button>
@@ -2063,6 +2067,8 @@
         <div class="phase-vehicle-item">
           <div class="phase-vehicle-label">③昼迎え</div>
           <div class="vehicle-picker" id="vehiclePicker-pmPickup" data-phase="pmPickup">
+            <button data-count="1">1台</button>
+            <button data-count="2">2台</button>
             <button data-count="3">3台</button>
             <button data-count="4">4台</button>
             <button data-count="5" class="active">5台</button>
@@ -2072,6 +2078,8 @@
         <div class="phase-vehicle-item">
           <div class="phase-vehicle-label">④夕方送り</div>
           <div class="vehicle-picker" id="vehiclePicker-pmDrop" data-phase="pmDrop">
+            <button data-count="1">1台</button>
+            <button data-count="2">2台</button>
             <button data-count="3">3台</button>
             <button data-count="4">4台</button>
             <button data-count="5" class="active">5台</button>
@@ -4283,8 +4291,8 @@ async function loadPrevRouteFile(file){
       if(!Array.isArray(vehicles) || vehicles.length === 0) return;
       const n = vehicles.length;
       countParts.push(`${phaseNames[phaseKey]}${n}台`);
-      // 3〜6台の範囲なら台数ボタンにも自動反映
-      if(n >= 3 && n <= 6){
+      // 1〜6台の範囲なら台数ボタンにも自動反映
+      if(n >= 1 && n <= 6){
         selectedVehicleCounts[phaseKey] = n;
         const picker = document.getElementById(`vehiclePicker-${phaseKey}`);
         if(picker){
