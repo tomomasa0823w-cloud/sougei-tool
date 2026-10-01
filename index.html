@@ -1900,7 +1900,7 @@
 
   <div class="hd">
     <div>
-      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.44</span></p>
+      <p class="hd-eyebrow">寿リハ ・ 送迎サポート <span style="opacity:.55;font-weight:500;">v7.45</span></p>
       <h1 id="pageTitle">利用者住所検索</h1>
     </div>
     <div class="hd-right">
@@ -1941,6 +1941,7 @@
       <option value="富樫店|石川県金沢市富樫3丁目6番17号">寿リハCC富樫</option>
       <option value="婦中店|富山県富山市婦中町島本郷10-10">寿リハ婦中</option>
       <option value="立山店|富山県中新川郡立山町前沢1880">寿リハ立山</option>
+      <option value="稲荷公園店|富山県富山市綾田町1丁目7-76">寿リハ稲荷公園</option>
     </select>
     <div class="origin-fixed" id="originFixed"></div>
   </div>
@@ -2205,6 +2206,7 @@ const SHOPS = {
   '富樫店':  '石川県金沢市富樫3丁目6番17号',
   '婦中店':  '富山県富山市婦中町島本郷10-10',
   '立山店':  '富山県中新川郡立山町前沢1880',
+  '稲荷公園店':'富山県富山市綾田町1丁目7-76',
 };
 let CURRENT_SHOP_NAME = '';
 let GAKU_ORIGIN = '';
@@ -2853,6 +2855,9 @@ const VEHICLES_BY_SHOP = {
     { no: 'た89-43', type: 'ノート' },
     { no: 'ふ29-89', type: 'デイズ' },
     { no: 'ま84-04', type: 'ノア' },
+  ],
+  '稲荷公園店': [
+    // 車両未登録(わかり次第 { no:'かな番号', type:'車種色' } を追加)
   ],
 };
 const vehicleCarMap = {};
